@@ -12,5 +12,7 @@ To restart the server with any changes you have made to the app, run
 sudo systemctl restart shadja
 ```
 
+The website is running at http://http://143.110.252.209/
+
 ### Plan
 Refer to our [issue board](https://github.com/sddhrthrt/shadja/issues).
