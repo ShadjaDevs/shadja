@@ -8,7 +8,7 @@ The `nginx` server is set up to serve `shadja.py`'s `app` object. So follow any 
 
 Make any edits wherever you prefer to edit code. Push changes to this repo. Follow Pull Requests workflow - create a Pull Request from your branch to master. Merge after peer review.
 
-To restart the server with any changes you have made to the app, either check out your branch on the VM or (if your changes are in master) update master branch in VM.
+To restart the server with any changes you have made to the app, either check out your branch on the VM or (if your changes are in master) update master branch in VM. (Essentially, have your code show up in the VM)
 
 Then, run
 
