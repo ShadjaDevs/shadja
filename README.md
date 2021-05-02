@@ -7,7 +7,7 @@ This app has been set up according to [digitalocean's setup guide for Flask and 
 The `nginx` server is set up to serve `shadja.py`'s `app` object. So follow any Flask development model, but let the `app` object in `shadja.py` be the app.
 
 
-### Development Workflow
+### Development workflow
 
 Make any edits wherever you prefer to edit code. Push changes to this repo. Follow Pull Requests workflow - create a Pull Request from your branch to master. Merge after peer review.
 
