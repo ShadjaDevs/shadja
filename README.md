@@ -6,7 +6,11 @@ This app has been set up according to [digitalocean's setup guide for Flask and 
 
 The `nginx` server is set up to serve `shadja.py`'s `app` object. So follow any Flask development model, but let the `app` object in `shadja.py` be the app.
 
-To restart the server with any changes you have made to the app, run
+Make any edits wherever you prefer to edit code. Push changes to this repo. Follow Pull Requests workflow - create a Pull Request from your branch to master. Merge after peer review.
+
+To restart the server with any changes you have made to the app, either check out your branch on the VM or (if your changes are in master) update master branch in VM.
+
+Then, run
 
 ```
 sudo systemctl restart shadja
