@@ -4,6 +4,8 @@
 
 This app has been set up according to [digitalocean's setup guide for Flask and Nginx](https://www.digitalocean.com/community/tutorials/how-to-serve-flask-applications-with-gunicorn-and-nginx-on-ubuntu-18-04). This decision was made to get quickly started with development on a VM, but in future we might move to a app service like DigitalOcean's Apps.
 
+The app lives in the VM at `/home/ubuntu/src/shadja`. To get access to `ubuntu` user on VM, ask in #infra.
+
 The `nginx` server is set up to serve `shadja.py`'s `app` object. So follow any Flask development model, but let the `app` object in `shadja.py` be the app.
 
 
@@ -14,7 +16,11 @@ Make any edits wherever you prefer to edit code. Push changes to this repo. Foll
 
 ### Deployment
 
-To update the server with any changes you have made to the app, either check out your branch on the VM or (if your changes are in master) update master branch in VM. (Essentially, have your code show up in the VM)
+To update the server with any changes you have made to the app, 
+- either check out your branch on the VM 
+- or (if your changes are in master) update master branch in VM. 
+
+Now, your code should be there in the VM at `/home/ubuntu/src/shadja`.
 
 Then, run
 
