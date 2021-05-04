@@ -1,3 +1,4 @@
 shadja.sock
 __pycache__
 .vscode
+migrations/
