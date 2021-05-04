@@ -6,13 +6,13 @@ class Consumer:
     '''Class object to represent every new _request_ added to the system by users'''
     def __init__(self):
         # List of interested pincodes
-        self.pin_codes = [] # list of numbers
+        self.pincodes = [] # list of numbers
 
         # Assume under 45 by default
         self.old = False # Boolean
 
         # By default, free or paid are ok
-        self.wantFree = None # Boolean/None
+        self.want_free = None # Boolean/None
 
         # By default, any flavor is ok
         # UI to make sure flavor is not left blank when

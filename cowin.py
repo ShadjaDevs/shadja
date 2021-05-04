@@ -11,6 +11,7 @@ AppointmentPath = 'appointment/sessions/public'
 AppointmentEp = '/'.join([BaseURL, Version, AppointmentPath])
 
 DateFormat = '%d-%m-%Y'
+TimeFormat = '%I:%M%p'
 
 def isValidPin(pincode):
     '''Check if supplied PIN is valid'''
