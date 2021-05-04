@@ -13,6 +13,26 @@ The `nginx` server is set up to serve `shadja.py`'s `app` object. So follow any 
 
 Make any edits wherever you prefer to edit code. Push changes to this repo. Follow Pull Requests workflow - create a Pull Request from your branch to master. Merge after peer review.
 
+### Running locally
+
+- Install mysql, libmysql-dev, libpython-dev
+- set up your local mysql.
+    - a user `shadja` with `<whatever>` password 
+    - a database `shadja_dev`
+    - `GRANT ALL PRIVILEGES` to `shadja` on `shadja_dev.*`
+- Activate your virtualenv
+- pip install -r requirements.txt
+- run in shell: `export MYSQL_PASSWORD="<whatever>"`
+- run in shell: `flask db init`
+- `flask db migrate -m "initial migration"`
+- `flask db upgrade`
+- ...
+
+This is where I'm at now.
+Now, db is created, ideally poller should be able to run off of db and persist
+all new found availabilities per pin to db. Should also be able to send 
+notifications via email (but email sender is not implemented yet)
+
 
 ### Deployment
 
