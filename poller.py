@@ -58,8 +58,8 @@ def processNotifications(subscription):
                 (subscription.end_time is None)) or \
             (subscription.start_time <= session['date'] <= subscription.end_time) and \
             (session['available_capacity'] > 0) and \
-            ((subscription.flavor is None) or (subscription.flavor==center['vaccine'].lower())) and \
-            (subscription.old or (center['min_age_limit']==18))
+            (subscription.old or (session['min_age_limit']==18)) and \
+            ((subscription.flavor is None) or (subscription.flavor==session['vaccine'].lower()))
         return valid
 
     def is_valid_slot(slot):
