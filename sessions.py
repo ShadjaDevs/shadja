@@ -10,8 +10,9 @@ def hash_session(session_response):
     data = \
         tuple((session_response.get(s, None) for s in (
             "center_id", "from", "to", "fee_type", "session_id",
-            "date", "available_capacity", "min_age_limit", "vaccine"
+            "date", "min_age_limit", "vaccine"
         )))
+    data = (*data, session_response.get("available_capacity", 0) > 0)
     return hash(
         data
     )

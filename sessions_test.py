@@ -9,11 +9,7 @@ class TestSessions(unittest.TestCase):
     }
     session_b = {
         "center_id": "3",
-        "available_capacity": 10
-    }
-    session_c = {
-        "center_id": "4",
-        "available_capacity": 4
+        "available_capacity": 0
     }
 
     calendar_a = { 
@@ -52,7 +48,6 @@ class TestSessions(unittest.TestCase):
             ]
         }]
     }
-
 
     def test_hash_session(self):
         self.assertNotEqual(hash_session(self.session_a), hash_session(self.session_b))
