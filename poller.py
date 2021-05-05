@@ -57,7 +57,7 @@ def processNotifications(subscription):
         valid = ((subscription.start_date is None) and \
                 (subscription.end_date is None)) or \
             (subscription.start_date.date() <= session['date'] <= subscription.end_date.date()) and \
-            (session['available_capacity'] > 0) and \
+            (int(session['available_capacity']) > 0) and \
             (subscription.old or (session['min_age_limit']==18)) and \
             ((subscription.flavor is None) or (subscription.flavor==session['vaccine'].lower()))
         return valid
@@ -145,6 +145,15 @@ def queryCoWIN(pincode):
                 Pincode.code == pincode.code
             ):
             processNotifications(subscription)
+
+@app.task
+def refreshAllPINs():
+    for pincode in Pincode.query.all():
+        queryCoWIN.delay(pincode.code)
+
+@app.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    sender.add_periodic_task(3, refreshAllPINs.s(), name='Refresh all pins')
 
 if __name__=='__main__':
     queryCoWIN(560008)
