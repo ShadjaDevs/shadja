@@ -52,11 +52,11 @@ def processNotifications(subscription):
         return False
 
     def is_valid_session(session):
-        session['date'] = datetime.datetime.strptime(session['date'], cowin.DateFormat)
+        session['date'] = datetime.datetime.strptime(session['date'], cowin.DateFormat).date()
         
         valid = ((subscription.start_date is None) and \
                 (subscription.end_date is None)) or \
-            (subscription.start_date <= session['date'] <= subscription.end_date) and \
+            (subscription.start_date.date() <= session['date'] <= subscription.end_date.date()) and \
             (session['available_capacity'] > 0) and \
             (subscription.old or (session['min_age_limit']==18)) and \
             ((subscription.flavor is None) or (subscription.flavor==session['vaccine'].lower()))
@@ -65,8 +65,8 @@ def processNotifications(subscription):
     def is_valid_slot(slot):
         start_time, _, end_time = slot.partition('-')
 
-        start_time = datetime.datetime.strptime(start_time, cowin.TimeFormat)
-        end_time   = datetime.datetime.strptime(end_time, cowin.TimeFormat)
+        start_time = datetime.datetime.strptime(start_time, cowin.TimeFormat).time()
+        end_time   = datetime.datetime.strptime(end_time, cowin.TimeFormat).time()
 
         # Need to find out if this slot has any overlap with the slot user is requesting
         # Interestingly, this is not trivial
