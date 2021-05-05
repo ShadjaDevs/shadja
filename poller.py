@@ -3,6 +3,7 @@ Script to be called by the cron job periodically to query CoWIN and update subsc
 '''
 
 import datetime
+from collections import defaultdict
 from celery import Celery
 
 from models import Pincode, Subscription
@@ -44,7 +45,7 @@ def processNotifications(subscription):
         if 'pincode' in center:
 
             return \
-                (center['pincode'] in subscription.pincodes) and \
+                (center['pincode'] in (p.code for p in subscription.pincodes)) and \
                 ((subscription.want_free is None) or \
                     (subscription.want_free == (center['fee_type']=='Free')))
         return False
@@ -76,7 +77,7 @@ def processNotifications(subscription):
         return valid
 
     # Find all valid slots in the pincodes
-    available_centers = {}
+    available_centers = defaultdict(list)
 
     for pincode in subscription.pincodes:
         data = pincode.availabilities
@@ -84,7 +85,7 @@ def processNotifications(subscription):
         # about this JSON data. Hence, checking
         # for the key in JSON before trying to access it.
         # Look before you leap approach
-        if 'centers' not in data:
+        if data is None or 'centers' not in data:
             continue
 
         # First figure out if this customer is interested in
@@ -108,10 +109,10 @@ def processNotifications(subscription):
                 session['slots'] = list(filter(is_valid_slot, session['slots']))
 
             # Filter out sessions with no valid slots
-            center['sessions'] = list(filter(lambda session: len(session['slots'])>0, sessions))
-
-        # Filter out centers with no valid sessions
-        available_centers[pincode] = list(filter(lambda center: len(center['sessions'])>0, centers))
+            sessions = list(filter(lambda session: len(session['slots'])>0, sessions))
+            if len(sessions) > 0:
+                center['sessions'] = sessions
+                available_centers[pincode].append(center)
 
     # Send the notification
     # TODO: If previously informed of the same, should you still do? May be yes
@@ -139,10 +140,10 @@ def queryCoWIN(pincode):
                                 Pincode, 
                                 Subscription.pincodes, 
                                 aliased=True
-            ).filter_by(
-                Pincode.code == pincode
+            ).filter(
+                Pincode.code == pincode.code
             ):
             processNotifications(subscription)
 
 if __name__=='__main__':
-    queryCoWIN(574229)
+    queryCoWIN(560008)
