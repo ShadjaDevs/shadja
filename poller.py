@@ -54,9 +54,9 @@ def processNotifications(subscription):
     def is_valid_session(session):
         session['date'] = datetime.datetime.strptime(session['date'], cowin.DateFormat)
         
-        valid = ((subscription.start_time is None) and \
-                (subscription.end_time is None)) or \
-            (subscription.start_time <= session['date'] <= subscription.end_time) and \
+        valid = ((subscription.start_date is None) and \
+                (subscription.end_date is None)) or \
+            (subscription.start_date <= session['date'] <= subscription.end_date) and \
             (session['available_capacity'] > 0) and \
             (subscription.old or (session['min_age_limit']==18)) and \
             ((subscription.flavor is None) or (subscription.flavor==session['vaccine'].lower()))
@@ -71,10 +71,10 @@ def processNotifications(subscription):
         # Need to find out if this slot has any overlap with the slot user is requesting
         # Interestingly, this is not trivial
         # https://stackoverflow.com/questions/3269434/whats-the-most-efficient-way-to-test-two-integer-ranges-for-overlap
-        valid = ((subscription.time_start is None) and \
-                (subscription.time_end is None)) or \
-            ((subscription.time_start <= end_time) and \
-             (subscription.time_end   >= start_time))
+        valid = ((subscription.start_time is None) and \
+                (subscription.end_time is None)) or \
+            ((subscription.start_time <= end_time) and \
+             (subscription.end_time >= start_time))
         return valid
 
     # Find all valid slots in the pincodes
