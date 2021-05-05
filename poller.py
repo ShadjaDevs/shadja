@@ -3,12 +3,16 @@ Script to be called by the cron job periodically to query CoWIN and update subsc
 '''
 
 import datetime
+from collections import defaultdict
+from celery import Celery
 
 from models import Pincode, Subscription
 from shadja import db
 from sessions import *
 import cowin
 import notify
+
+app = Celery('poller', broker='pyamqp://guest@localhost')
 
 # Read the database to find which pincodes to query
 def getAllPincodes():
@@ -23,6 +27,7 @@ def updateCoWINData(pincode):
     '''Get CoWIN data for given pincode and write to a database'''
     # TODO: Current implementation will give slots for next week. What about the dates in the future?
     data = cowin.findWeeklySessionsByPin(pincode.code)
+    print(data)
     data_hashed = str(hash_calendar(data))
     if pincode.availabilities_hash != data_hashed:
         pincode.availabilities = data
@@ -41,39 +46,39 @@ def processNotifications(subscription):
         if 'pincode' in center:
 
             return \
-                (center['pincode'] in subscription.pincodes) and \
+                (center['pincode'] in (p.code for p in subscription.pincodes)) and \
                 ((subscription.want_free is None) or \
                     (subscription.want_free == (center['fee_type']=='Free')))
         return False
 
     def is_valid_session(session):
-        session['date'] = datetime.datetime.strptime(session['date'], cowin.DateFormat)
+        session['date'] = datetime.datetime.strptime(session['date'], cowin.DateFormat).date()
         
-        valid = ((subscription.date_start is None) and \
-                (subscription.date_end is None)) or \
-            (subscription.date_start <= session['date'] <= subscription.date_end) and \
+        valid = ((subscription.start_date is None) and \
+                (subscription.end_date is None)) or \
+            (subscription.start_date.date() <= session['date'] <= subscription.end_date.date()) and \
             (session['available_capacity'] > 0) and \
-            ((subscription.flavor is None) or (subscription.flavor==center['vaccine'].lower())) and \
-            (subscription.old or (center['min_age_limit']==18))
+            (subscription.old or (session['min_age_limit']==18)) and \
+            ((subscription.flavor is None) or (subscription.flavor==session['vaccine'].lower()))
         return valid
 
     def is_valid_slot(slot):
         start_time, _, end_time = slot.partition('-')
 
-        start_time = datetime.datetime.strptime(start_time, cowin.TimeFormat)
-        end_time   = datetime.datetime.strptime(end_time, cowin.TimeFormat)
+        start_time = datetime.datetime.strptime(start_time, cowin.TimeFormat).time()
+        end_time   = datetime.datetime.strptime(end_time, cowin.TimeFormat).time()
 
         # Need to find out if this slot has any overlap with the slot user is requesting
         # Interestingly, this is not trivial
         # https://stackoverflow.com/questions/3269434/whats-the-most-efficient-way-to-test-two-integer-ranges-for-overlap
-        valid = ((subscription.time_start is None) and \
-                (subscription.time_end is None)) or \
-            ((subscription.time_start <= end_time) and \
-             (subscription.time_end   >= start_time))
+        valid = ((subscription.start_time is None) and \
+                (subscription.end_time is None)) or \
+            ((subscription.start_time <= end_time) and \
+             (subscription.end_time >= start_time))
         return valid
 
     # Find all valid slots in the pincodes
-    available_centers = {}
+    available_centers = defaultdict(list)
 
     for pincode in subscription.pincodes:
         data = pincode.availabilities
@@ -81,7 +86,7 @@ def processNotifications(subscription):
         # about this JSON data. Hence, checking
         # for the key in JSON before trying to access it.
         # Look before you leap approach
-        if 'centers' not in data:
+        if data is None or 'centers' not in data:
             continue
 
         # First figure out if this customer is interested in
@@ -105,10 +110,10 @@ def processNotifications(subscription):
                 session['slots'] = list(filter(is_valid_slot, session['slots']))
 
             # Filter out sessions with no valid slots
-            center['sessions'] = list(filter(lambda session: len(session['slots'])>0, sessions))
-
-        # Filter out centers with no valid sessions
-        available_centers[pincode] = list(filter(lambda center: len(center['sessions'])>0, centers))
+            sessions = list(filter(lambda session: len(session['slots'])>0, sessions))
+            if len(sessions) > 0:
+                center['sessions'] = sessions
+                available_centers[pincode].append(center)
 
     # Send the notification
     # TODO: If previously informed of the same, should you still do? May be yes
@@ -121,23 +126,25 @@ def processNotifications(subscription):
     # if subscription.telegram_id:
     #     notify_mobile(subscription, available_centers)
 
-def queryCoWIN():
+@app.task
+def queryCoWIN(pincode):
     '''Query CoWIN and update consumers of any relevant slots'''
     # Get data from CoWIN for each of these pincodes and update internal DB
-    pincodes_with_updates = []
-    for pincode in getAllPincodes():
-        if updateCoWINData(pincode):
-            pincodes_with_updates.append(pincode)
+    pincode = Pincode.query.filter(Pincode.code==pincode).first()
+    if pincode is None:
+        print(f"Unknown pincode: {pincode}")
+        return
 
-    # Now, update the consumers if there are any relevant slots for them
-    for subscription in Subscription.query.join(
-                            Pincode, 
-                            Subscription.pincodes, 
-                            aliased=True
-        ).filter_by(
-            Pincode.code.in_((p.code for p in pincodes_with_updates))
-        ):
-        processNotifications(subscription)
+    if updateCoWINData(pincode):
+        # Now, update the consumers if there are any relevant slots for them
+        for subscription in Subscription.query.join(
+                                Pincode, 
+                                Subscription.pincodes, 
+                                aliased=True
+            ).filter(
+                Pincode.code == pincode.code
+            ):
+            processNotifications(subscription)
 
 if __name__=='__main__':
-    queryCoWIN()
+    queryCoWIN(560008)

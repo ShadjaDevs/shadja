@@ -1,4 +1,5 @@
 from collections import Counter
+from copy import deepcopy
 
 def hash_session(session_response):
     # Here we'll use all "significant" fields of sessions
@@ -30,6 +31,7 @@ def hash_sessions(sessions):
 
 def hash_calendar(calendar):
     all_hashes = []
+    calendar = deepcopy(calendar)
     for i in range(len(calendar["centers"])):
         center = calendar["centers"][i]
         sessions = center.get("sessions", None)

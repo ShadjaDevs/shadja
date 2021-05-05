@@ -15,7 +15,7 @@ Make any edits wherever you prefer to edit code. Push changes to this repo. Foll
 
 ### Running locally
 
-- Install mysql, libmysql-dev, libpython-dev
+- Install mysql-server, libmysqlclient-dev, libpython3.8-dev
 - set up your local mysql.
     - a user `shadja` with `<whatever>` password 
     - a database `shadja_dev`
