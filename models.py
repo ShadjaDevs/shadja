@@ -17,7 +17,7 @@ class Pincode(db.Model):
     availabilities = db.Column(db.JSON)
     # hash of all availabilities, using Session.hash_many()
     availabilities_hash = db.Column(db.String(24))
-    subscrptions = db.relationship(
+    subscriptions = db.relationship(
         "Subscription", 
         secondary=subscription_pincode,
         lazy=True, 
@@ -48,7 +48,13 @@ class Subscription(db.Model):
     send_email = db.Column(db.Boolean)
     send_mobile = db.Column(db.Boolean)
     send_telegram = db.Column(db.Boolean)
-    # hash of all sessions included in notificaion using Session.hash_many()
+    verified_email = db.Column(db.Boolean)
+    verified_mobile = db.Column(db.Boolean)
+    verified_telegram = db.Column(db.Boolean)
+    otp_email = db.Column(db.Integer)
+    otp_mobile = db.Column(db.Integer)
+    otp_telegram = db.Column(db.Integer)
+    # hash of all sessions included in notification using Session.hash_many()
     notification_hash = db.Column(db.String(24))
 
     def __init__(self, old, want_free, flavor):
