@@ -120,11 +120,11 @@ def processNotifications(subscription):
     if subscription.email:
         notify.notify_email(subscription, available_centers)
 
-    # if subscription.mobile:
-    #     notify_mobile(subscription, available_centers)
+    if consumer.mobile:
+        notify_mobile(consumer, available_centers)
 
-    # if subscription.telegram_id:
-    #     notify_mobile(subscription, available_centers)
+    if consumer.telegram_id:
+        notify_telegram(consumer, available_centers)
 
 @app.task
 def queryCoWIN(pincode):

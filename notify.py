@@ -27,3 +27,9 @@ def notify_email(consumer, available_centers):
 #     print ('TransactionID to store locally: ', emailResponse['transactionid'])
 # except TypeError:
 #     print ('Server returned an error: ', emailResponse)
+
+def notify_mobile(consumer, available_centers):
+    pass
+
+def notify_telegram(consumer, available_centers):
+    pass
