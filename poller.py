@@ -149,11 +149,11 @@ def queryCoWIN(pincode):
 @app.task
 def refreshAllPINs():
     for pincode in Pincode.query.all():
-        queryCoWIN.delay(pincode.code)
+        if len(pincode.subscriptions) > 0:
+            queryCoWIN.delay(pincode.code)
 
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    print("hello")
     sender.add_periodic_task(3, refreshAllPINs.s(), name='Refresh all pins')
 
 if __name__=='__main__':

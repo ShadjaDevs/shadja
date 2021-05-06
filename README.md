@@ -20,13 +20,23 @@ Make any edits wherever you prefer to edit code. Push changes to this repo. Foll
     - a user `shadja` with `<whatever>` password 
     - a database `shadja_dev`
     - `GRANT ALL PRIVILEGES` to `shadja` on `shadja_dev.*`
+
+#### Preparing the env:
+
 - Activate your virtualenv
 - pip install -r requirements.txt
 - run in shell: `export MYSQL_PASSWORD="<whatever>"`
-- run in shell: `flask db init`
+
+####  Migrate: init only if this is the first time you're running the app on the database
+
+- run in shell: `flask db init` (only if this is an empty database)
 - `flask db migrate -m "initial migration"`
 - `flask db upgrade`
-- ...
+
+#### Start the webserver
+
+- Locally: `python shadja.py`
+- On VM: `sudo service shadja restart`
 
 This is where I'm at now.
 Now, db is created, ideally poller should be able to run off of db and persist
@@ -56,6 +66,23 @@ drop and create a column etc. Look up `SQLAlchemy migrations` for more details.
 - `migrations` directory is not included in git history. This is because your local 
 env's migration sequence could be different from production, and is different from a new deployment.
 
+### Automation of querying
+
+I've followed https://docs.celeryproject.org/en/stable/getting-started/first-steps-with-celery.html with RabbitMQ as the messaging backend.
+
+To run this, ideally, you have to just run this:
+
+```
+celery -A poller worker -B --loglevel=INFO
+```
+
+Here, `celery -A poller worker` starts a multi-threaded set of workers (as much
+as the concurrency on the machine allows), and in our case `queryCoWIN` is the 
+one of the workers. 
+
+The `-B` flag runs `setup_periodic_tasks`, that periodically runs `refreshAllPins`. 
+That is another worker which queries all pincodes
+that are being used by subscribers and adds them to the queue for celery worker.
 
 
 ### Deployment
