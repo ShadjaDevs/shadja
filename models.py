@@ -1,6 +1,7 @@
 import json
 
-from shadja import db
+from extensions import db
+
 '''
 Contains all models
 '''

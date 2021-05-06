@@ -1,24 +1,18 @@
-import os
-import hashlib
-import random
-
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, render_template
 from flask_migrate import Migrate
 
-from models import Pincode, Subscription
 import utils
-
-MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD")
-MYSQL_STRING = f"mysql://shadja:{MYSQL_PASSWORD}@localhost/shadja_dev"
-
-app = Flask(__name__)
-
-app.config["SQLALCHEMY_DATABASE_URI"] = MYSQL_STRING
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
 from models import *
+from extensions import db, MYSQL_STRING
+
+def create_app():
+    app = Flask(__name__)
+    app.config["SQLALCHEMY_DATABASE_URI"] = MYSQL_STRING
+    db.init_app(app)
+    return app
+
+app = create_app()
+migrate = Migrate(app, db)
 
 @app.route("/")
 def home():

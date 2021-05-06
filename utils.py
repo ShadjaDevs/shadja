@@ -1,5 +1,9 @@
 '''Contains commmon utility functions'''
 
+import hashlib
+import os
+import random
+
 OtpMax = 9999 # 4 digit OTP
 Salt = os.urandom(32)
 
