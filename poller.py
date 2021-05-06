@@ -121,11 +121,11 @@ def processNotifications(consumer):
     if consumer.email:
         notify.notify_email(consumer, available_centers)
 
-    # if consumer.mobile:
-    #     notify_mobile(consumer, available_centers)
+    if consumer.mobile:
+        notify_mobile(consumer, available_centers)
 
-    # if consumer.telegram_id:
-    #     notify_mobile(consumer, available_centers)
+    if consumer.telegram_id:
+        notify_telegram(consumer, available_centers)
 
 def queryCoWIN():
     '''Query CoWIN and update consumers of any relevant slots'''
