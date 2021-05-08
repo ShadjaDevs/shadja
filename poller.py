@@ -3,91 +3,90 @@ Script to be called by the cron job periodically to query CoWIN and update subsc
 '''
 
 import datetime
+from collections import defaultdict
+from celery import Celery
 
-import consumer
+from models import Pincode, Subscription
+from shadja import db
+from sessions import *
 import cowin
 import notify
 
-# FIXME: Temporary variable
-all_data = {}
+app = Celery('poller', broker='pyamqp://guest@localhost')
 
 # Read the database to find which pincodes to query
 def getAllPincodes():
     ''' Get a list of pincodes to query CoWIN'''
-    # FIXME: Placeholder for now
-    return [560090, 560015]
-    # TODO: Return an iterable here
+    return Pincode.query.all()
 
-def getAllConsumers():
-    '''Get a list of consumers to process with new data'''
-    # TODO: Connect a DB with ORM so that return value is a iterable of class instances
-    # FIXME: Placeholder for now
-    c = consumer.Consumer()
-    c.pincodes = [560090, 560015]
-    c.old = True
-    c.to_email = True
-    return [c]
+def getAllSubscriptions():
+    '''Get a list of subscriptions to process with new data'''
+    return Subscription.query.all()
 
-def storeCoWINData(pincode):
+def updateCoWINData(pincode):
     '''Get CoWIN data for given pincode and write to a database'''
     # TODO: Current implementation will give slots for next week. What about the dates in the future?
-    data = cowin.findWeeklySessionsByPin(pincode)
-    # FIXME: Placeholder for now
-    global all_data
-    all_data[pincode] = data
+    data = cowin.findWeeklySessionsByPin(pincode.code)
+    print(data)
+    data_hashed = str(hash_calendar(data))
+    if pincode.availabilities_hash != data_hashed:
+        pincode.availabilities = data
+        pincode.availabilities_hash = data_hashed
+        db.session.add(pincode)
+        db.session.commit()
+        return True
+    # no changes to calendar.
+    return False
 
-def processNotifications(consumer):
-    '''Notify the consumers if there are new slots opening up'''
-    global all_data
+def processNotifications(subscription):
+    '''Notify the subscriptions if there are new slots opening up'''
 
-    # Define functions for this consumer
+    # Define functions for this subscription
     def is_valid_center(center):
-        # TODO: Check that the keys exist
-        # Do not assume
-        valid = \
-            (center['pincode'] in consumer.pincodes) and \
-            ((consumer.want_free is None) or \
-                (consumer.want_free == (center['fee_type']=='Free')))
-        return valid
+        if 'pincode' in center:
+
+            return \
+                (center['pincode'] in (p.code for p in subscription.pincodes)) and \
+                ((subscription.want_free is None) or \
+                    (subscription.want_free == (center['fee_type']=='Free')))
+        return False
 
     def is_valid_session(session):
-        session['date'] = datetime.datetime.strptime(session['date'], cowin.DateFormat)
+        session['date'] = datetime.datetime.strptime(session['date'], cowin.DateFormat).date()
         
-        valid = ((consumer.date_start is None) and \
-                (consumer.date_end is None)) or \
-            (consumer.date_start <= session['date'] <= consumer.date_end) and \
-            (session['available_capacity'] > 0) and \
-            ((consumer.flavor is None) or (consumer.flavor==center['vaccine'].lower())) and \
-            (consumer.old or (center['min_age_limit']==18))
+        valid = ((subscription.start_date is None) and \
+                (subscription.end_date is None)) or \
+            (subscription.start_date <= session['date'] <= subscription.end_date) and \
+            (int(session['available_capacity']) > 0) and \
+            (subscription.old or (session['min_age_limit']==18)) and \
+            ((subscription.flavor is None) or (subscription.flavor==session['vaccine'].lower()))
         return valid
 
     def is_valid_slot(slot):
         start_time, _, end_time = slot.partition('-')
 
-        start_time = datetime.datetime.strptime(start_time, cowin.TimeFormat)
-        end_time   = datetime.datetime.strptime(end_time, cowin.TimeFormat)
+        start_time = datetime.datetime.strptime(start_time, cowin.TimeFormat).time()
+        end_time   = datetime.datetime.strptime(end_time, cowin.TimeFormat).time()
 
         # Need to find out if this slot has any overlap with the slot user is requesting
         # Interestingly, this is not trivial
         # https://stackoverflow.com/questions/3269434/whats-the-most-efficient-way-to-test-two-integer-ranges-for-overlap
-        valid = ((consumer.time_start is None) and \
-                (consumer.time_end is None)) or \
-            ((consumer.time_start <= end_time) and \
-             (consumer.time_end   >= start_time))
+        valid = ((subscription.start_time is None) and \
+                (subscription.end_time is None)) or \
+            ((subscription.start_time <= end_time) and \
+             (subscription.end_time >= start_time))
         return valid
 
     # Find all valid slots in the pincodes
-    available_centers = {}
+    available_centers = defaultdict(list)
 
-    for pincode in consumer.pincodes:
-        # FIXME: This should be a DB read
-        data = all_data[pincode]
-
+    for pincode in subscription.pincodes:
+        data = pincode.availabilities
         # At this moment, assuming no guarantees
         # about this JSON data. Hence, checking
         # for the key in JSON before trying to access it.
         # Look before you leap approach
-        if 'centers' not in data:
+        if data is None or 'centers' not in data:
             continue
 
         # First figure out if this customer is interested in
@@ -111,15 +110,15 @@ def processNotifications(consumer):
                 session['slots'] = list(filter(is_valid_slot, session['slots']))
 
             # Filter out sessions with no valid slots
-            center['sessions'] = list(filter(lambda session: len(session['slots'])>0, sessions))
-
-        # Filter out centers with no valid sessions
-        available_centers[pincode] = list(filter(lambda center: len(center['sessions'])>0, centers))
+            sessions = list(filter(lambda session: len(session['slots'])>0, sessions))
+            if len(sessions) > 0:
+                center['sessions'] = sessions
+                available_centers[pincode].append(center)
 
     # Send the notification
     # TODO: If previously informed of the same, should you still do? May be yes
-    if consumer.email:
-        notify.notify_email(consumer, available_centers)
+    if subscription.email:
+        notify.notify_email(subscription, available_centers)
 
     if consumer.mobile:
         notify_mobile(consumer, available_centers)
@@ -127,15 +126,34 @@ def processNotifications(consumer):
     if consumer.telegram_id:
         notify_telegram(consumer, available_centers)
 
-def queryCoWIN():
+@app.task
+def queryCoWIN(pincode):
     '''Query CoWIN and update consumers of any relevant slots'''
     # Get data from CoWIN for each of these pincodes and update internal DB
-    for pincode in getAllPincodes():
-        storeCoWINData(pincode)
+    pincode = Pincode.query.filter(Pincode.code==pincode).first()
+    if pincode is None:
+        print(f"Unknown pincode: {pincode}")
+        return
 
-    # Now, update the consumers if there are any relevant slots for them
-    for consumer in getAllConsumers():
-        processNotifications(consumer)
+    if updateCoWINData(pincode):
+        # Now, update the consumers if there are any relevant slots for them
+        for subscription in Subscription.query.join(
+                                Pincode, 
+                                Subscription.pincodes, 
+                                aliased=True
+            ).filter(
+                Pincode.code == pincode.code
+            ):
+            processNotifications(subscription)
+
+@app.task
+def refreshAllPINs():
+    for pincode in Pincode.query.all():
+        queryCoWIN.delay(pincode.code)
+
+#@app.on_after_configure.connect
+#def setup_periodic_tasks(sender, **kwargs):
+#    sender.add_periodic_task(3, refreshAllPINs.s(), name='Refresh all pins')
 
 if __name__=='__main__':
-    queryCoWIN()
+    queryCoWIN.delay(560008)
