@@ -1,35 +1,46 @@
 '''Contains different notification methods'''
 
-from ElasticEmailClient import ApiClient, Email
+import jinja2
+import json
+import os
+import ElasticEmailClient as EmailClient
 
-def notify_email(consumer, available_centers):
+# Global email settings for the notifications
+EmailClient.ApiClient.apiKey = os.environ.get("ELASTICEMAIL_KEY")
+EmailSubject = 'We found new vaccine appointments for you'
+EmailFrom = 'appointments@bookmyvaccine.app'
+EmailFromName = 'BookMyVaccine'
+
+def notify_email(subscription, available_centers):
     '''Send an email using a bootstrap template with availability
     of slots'''
-    print(f"emailing {consumer} with {available_centers}")
+
+    bodyText = json.dumps(available_centers)
+    bodyHtml = jinja2.Template(open('templates/email_slot_template.html').read()).render(
+        available_centers=available_centers)
+    to = subscription.email
+
+    emailResponse = EmailClient.Email.Send(
+        subject=EmailSubject,
+        EEfrom=EmailFrom,
+        fromName=EmailFromName,
+        msgTo=[to],
+        bodyText=bodyText,
+        bodyHtml=bodyHtml,
+        isTransactional=True,
+        encodingType=EmailClient.ApiTypes.EncodingType.Base64)
+
+    print(emailResponse)
+
+def notify_mobile(subscription, available_centers):
     pass
 
-# TODO: Elastic mail API: need to work on it after domain is registered
-# ApiClient.apiKey = '11111111-2222-3333-4444-555555555555'
-
-# subject = 'Your subject'
-# fromEmail = 'Your Email'
-# fromName = 'Your Company Name'
-# bodyText = 'Text body'
-# bodyHtml = '<h1>Hello, {username}.</h1>'
-# files = { 'C:/Users/recipients.csv' }
-# filenameWithRecipients = 'recipients.csv' # same as the file above
-
-# emailResponse = Email.Send(subject, fromEmail, fromName, bodyText = bodyText, bodyHtml = bodyHtml, attachmentFiles = files, mergeSourceFilename = filenameWithRecipients)
-
-
-# try:
-#     print ('MsgID to store locally: ', emailResponse['messageid'], end='\n') # Available only if sent to a single recipient
-#     print ('TransactionID to store locally: ', emailResponse['transactionid'])
-# except TypeError:
-#     print ('Server returned an error: ', emailResponse)
-
-def notify_mobile(consumer, available_centers):
+def notify_telegram(subscription, available_centers):
     pass
 
-def notify_telegram(consumer, available_centers):
-    pass
+if __name__=='__main__':
+    import models
+    centers = {}
+    subscription = models.Subscription(True, None, None)
+    subscription.email = 'nikhil.soraba+bookmyvaccine@gmail.com'
+    notify_email(subscription, centers)
