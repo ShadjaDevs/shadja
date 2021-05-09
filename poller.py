@@ -36,6 +36,9 @@ def updateCoWINData(pincode):
     return False
 
 def processNotifications(subscription):
+    def is_valid_subscriber(subscription):
+        return subscription.verified_telegram or subscription.verified_mobile or subscription.verified_email
+
     '''Notify the subscriptions if there are new slots opening up'''
 
     # Define functions for this subscription
@@ -73,6 +76,9 @@ def processNotifications(subscription):
             ((subscription.start_time <= end_time) and \
              (subscription.end_time >= start_time))
         return valid
+    
+    if not is_valid_subscriber(subscription):
+        return
 
     # Find all valid slots in the pincodes
     available_centers = defaultdict(list)
@@ -114,14 +120,20 @@ def processNotifications(subscription):
 
     # Send the notification
     # TODO: If previously informed of the same, should you still do? May be yes
-    if subscription.email:
-        notify.notify_email(subscription, available_centers)
+    sent_e, sent_m, sent_t = False, False, False
+    if subscription.email and subscription.verified_email:
+        sent_e = notify.notify_email(subscription, available_centers)
 
-    if consumer.mobile:
-        notify_mobile(consumer, available_centers)
+    if consumer.mobile and subscription.verified_mobile:
+        sent_m = notify.notify_mobile(consumer, available_centers)
 
-    if consumer.telegram_id:
-        notify_telegram(consumer, available_centers)
+    if consumer.telegram_id and subscription.verified_telegram:
+        sent_t = notify.notify_telegram(consumer, available_centers)
+
+    if sent_e or sent_m or sent_t:
+        subscription.notification_hash = session.hash_calendars(available_centers)
+        db.session.commit()
+
 
 @celery.task
 def queryCoWIN(pincode):

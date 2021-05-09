@@ -12,6 +12,7 @@ EmailSubject = 'We found new vaccine appointments for you'
 EmailFrom = 'appointments@bookmyvaccine.app'
 EmailFromName = 'BookMyVaccine'
 
+# return True if everything goes well so we can avoid sending this notification again
 def notify_email(subscription, available_centers):
     '''Send an email using a bootstrap template with availability
     of slots'''
@@ -30,14 +31,15 @@ def notify_email(subscription, available_centers):
         bodyHtml=bodyHtml,
         isTransactional=True,
         encodingType=EmailClient.ApiTypes.EncodingType.Base64)
+    return True
 
-    print(emailResponse)
-
+# return True if everything goes well so we can avoid sending this notification again
 def notify_mobile(subscription, available_centers):
-    pass
+    return False
 
+# return True if everything goes well so we can avoid sending this notification again
 def notify_telegram(subscription, available_centers):
-    pass
+    return False
 
 if __name__=='__main__':
     import models
