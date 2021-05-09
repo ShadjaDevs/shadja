@@ -1,19 +1,26 @@
 from flask import Flask, render_template
 from flask_migrate import Migrate
 
+from extensions import make_db, metrics, make_celery
 import utils
-from extensions import celery_setup, sqlalchemy_setup
 
 app = Flask(__name__)
 
-db, app = sqlalchemy_setup(app)
-celery, app = celery_setup(app)
+# set up database
+db, app = make_db(app)
 migrate = Migrate(app, db)
-
 from models import *
+
+# other extensions
+celery = make_celery(app)
+metrics.init_app(app)
+
 
 @app.route("/")
 def home():
+    p = Pincode(560008)
+    db.session.add(p)
+    db.session.commit()
     return render_template('index.html')
 
 @app.route('/add_subscription', methods=['POST'])

@@ -6,10 +6,11 @@ import datetime
 from collections import defaultdict
 
 from models import Pincode, Subscription
-from shadja import db, celery
 from sessions import *
 import cowin
 import notify
+from extensions import db
+from shadja import celery
 
 # Read the database to find which pincodes to query
 def getAllPincodes():

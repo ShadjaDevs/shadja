@@ -2,19 +2,36 @@ import os
 
 from flask_sqlalchemy import SQLAlchemy
 from celery import Celery
+from prometheus_flask_exporter import PrometheusMetrics
 
-def sqlalchemy_setup(app):
-    MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD")
-    MYSQL_STRING = f"mysql://shadja:{MYSQL_PASSWORD}@localhost/shadja_dev"
+# DATABASE
+MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD")
+MYSQL_STRING = f"mysql://shadja:{MYSQL_PASSWORD}@localhost/shadja_dev"
+db = SQLAlchemy()
 
+def make_db(app):
     app.config["SQLALCHEMY_DATABASE_URI"] = MYSQL_STRING
-    db = SQLAlchemy(app)
-    return db, app 
+    db.init_app(app)
+    return db, app
 
-def celery_setup(app):
-    RABBITMQ_PASSWORD = os.environ.get('RABBITMQ_PASSWORD')
-    app.config['CELERY_BROKER_URL'] = f'amqp://shadja:{RABBITMQ_PASSWORD}@localhost:5672/shadjavhost'
+# CELERY AND RABBITMQ
+RABBITMQ_PASSWORD = os.environ.get('RABBITMQ_PASSWORD')
+CELERY_BROKER_URL_BUILT = f'amqp://shadja:{RABBITMQ_PASSWORD}@localhost:5672/shadjavhost'
 
-    celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
+def make_celery(app):
+    celery = Celery(
+        app.import_name,
+        broker=CELERY_BROKER_URL_BUILT
+    )
     celery.conf.update(app.config)
-    return celery, app
+
+    class ContextTask(celery.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask
+    return celery
+
+# PROMETHEUS
+metrics = PrometheusMetrics.for_app_factory()
