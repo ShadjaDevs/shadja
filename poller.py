@@ -116,7 +116,7 @@ def processNotifications(subscription):
             sessions = list(filter(lambda session: len(session['slots'])>0, sessions))
             if len(sessions) > 0:
                 center['sessions'] = sessions
-                available_centers[pincode].append(center)
+                available_centers[pincode.code].append(center)
 
     # Send the notification
     # TODO: If previously informed of the same, should you still do? May be yes
