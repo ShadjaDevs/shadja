@@ -158,7 +158,8 @@ def queryCoWIN(pincode):
 @celery.task
 def refreshAllPINs():
     for pincode in Pincode.query.all():
-        queryCoWIN.delay(pincode.code)
+        if len(pincode.subscriptions) > 0:
+            queryCoWIN.delay(pincode.code)
 
 @celery.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
