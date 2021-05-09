@@ -4,15 +4,12 @@ Script to be called by the cron job periodically to query CoWIN and update subsc
 
 import datetime
 from collections import defaultdict
-from celery import Celery
 
 from models import Pincode, Subscription
-from shadja import db
+from shadja import db, celery
 from sessions import *
 import cowin
 import notify
-
-app = Celery('poller', broker='pyamqp://guest@localhost')
 
 # Read the database to find which pincodes to query
 def getAllPincodes():
@@ -126,7 +123,7 @@ def processNotifications(subscription):
     if consumer.telegram_id:
         notify_telegram(consumer, available_centers)
 
-@app.task
+@celery.task
 def queryCoWIN(pincode):
     '''Query CoWIN and update consumers of any relevant slots'''
     # Get data from CoWIN for each of these pincodes and update internal DB
@@ -146,14 +143,15 @@ def queryCoWIN(pincode):
             ):
             processNotifications(subscription)
 
-@app.task
+@celery.task
 def refreshAllPINs():
     for pincode in Pincode.query.all():
         queryCoWIN.delay(pincode.code)
 
-#@app.on_after_configure.connect
-#def setup_periodic_tasks(sender, **kwargs):
-#    sender.add_periodic_task(3, refreshAllPINs.s(), name='Refresh all pins')
+@celery.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    sender.add_periodic_task(30, refreshAllPINs.s(), name='Refresh all pins') # 30s
 
 if __name__=='__main__':
-    queryCoWIN.delay(560008)
+    # queryCoWIN.delay(560008)
+    pass

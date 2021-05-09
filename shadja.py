@@ -2,17 +2,15 @@ from flask import Flask, render_template
 from flask_migrate import Migrate
 
 import utils
-from models import *
-from extensions import db, MYSQL_STRING
+from extensions import celery_setup, sqlalchemy_setup
 
-def create_app():
-    app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = MYSQL_STRING
-    db.init_app(app)
-    return app
+app = Flask(__name__)
 
-app = create_app()
+db, app = sqlalchemy_setup(app)
+celery, app = celery_setup(app)
 migrate = Migrate(app, db)
+
+from models import *
 
 @app.route("/")
 def home():
