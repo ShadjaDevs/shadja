@@ -26,12 +26,18 @@ Make any edits wherever you prefer to edit code. Push changes to this repo. Foll
 - run in shell: `flask db init`
 - `flask db migrate -m "initial migration"`
 - `flask db upgrade`
-- ...
-
-This is where I'm at now.
-Now, db is created, ideally poller should be able to run off of db and persist
-all new found availabilities per pin to db. Should also be able to send 
-notifications via email (but email sender is not implemented yet)
+- Install rabbitmq: `sudo apt install rabbitmq-server
+- Setup rabbitmq:
+```
+sudo rabbitmqctl add_user shadja <rabbitmq_password>
+sudo rabbitmqctl add_vhost shadjavhost
+sudo rabbitmqctl set_user_tags shadja shadja
+sudo rabbitmqctl set_permissions -p shadjavhost shadja ".*" ".*" ".*"
+sudo rabbitmq-server 
+```
+- run in shell: `export RABBITMQ_PASSWORD=<rabbitmq_password>`
+- Start local workers: `celery -A shadja worker -B -l Info`
+- Start server: python shadja.py
 
 ### Making changes to the model
 
@@ -73,6 +79,9 @@ sudo systemctl restart shadja
 ```
 
 The website is running at http://143.110.252.209/
+
+### Celery worker
+Follow local installation steps for RabbitMQ and Celery
 
 ### Plan
 Refer to our [issue board](https://github.com/sddhrthrt/shadja/issues).
