@@ -5,6 +5,7 @@ from extensions import make_db, metrics, make_celery
 import utils
 
 app = Flask(__name__)
+app.config.from_envvar('SHADJA_SETTINGS')
 
 # set up database
 db, app = make_db(app)
@@ -18,9 +19,6 @@ metrics.init_app(app)
 
 @app.route("/")
 def home():
-    p = Pincode(560008)
-    db.session.add(p)
-    db.session.commit()
     return render_template('index.html')
 
 @app.route('/add_subscription', methods=['POST'])

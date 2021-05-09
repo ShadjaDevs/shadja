@@ -4,9 +4,10 @@ import jinja2
 import json
 import os
 import ElasticEmailClient as EmailClient
+from shadja import app
 
 # Global email settings for the notifications
-EmailClient.ApiClient.apiKey = os.environ.get("ELASTICEMAIL_KEY")
+EmailClient.ApiClient.apiKey = app.config.get("ELASTICEMAIL_KEY")
 EmailSubject = 'We found new vaccine appointments for you'
 EmailFrom = 'appointments@bookmyvaccine.app'
 EmailFromName = 'BookMyVaccine'
