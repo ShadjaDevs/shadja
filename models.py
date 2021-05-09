@@ -1,4 +1,6 @@
 import json
+from sqlalchemy_utils import UUIDType
+import uuid
 
 from shadja import db
 
@@ -55,13 +57,14 @@ class Subscription(db.Model):
     otp_email = db.Column(db.Integer)
     otp_mobile = db.Column(db.Integer)
     otp_telegram = db.Column(db.Integer)
+    # UUID for tacking OTPs
+    uuid = db.Column(UUIDType(binary=True))
     # hash of all sessions included in notification using Session.hash_many()
     notification_hash = db.Column(db.String(24))
 
-    def __init__(self, old, want_free, flavor):
+    def __init__(self, old):
         self.old = old
-        self.want_free = want_free
-        self.flavor = flavor
+        self.uuid = uuid.uuid4()
 
     def __repr__(self):
         return f'Subscription<old:{self.old} want_free:{self.want_free} flavor:{self.flavor}>'
