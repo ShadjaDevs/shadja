@@ -24,7 +24,6 @@ def updateCoWINData(pincode):
     '''Get CoWIN data for given pincode and write to a database'''
     # TODO: Current implementation will give slots for next week. What about the dates in the future?
     data = cowin.findWeeklySessionsByPin(pincode.code)
-    print(data)
     data_hashed = str(hash_calendar(data))
     if pincode.availabilities_hash != data_hashed:
         pincode.availabilities = data
@@ -52,11 +51,11 @@ def processNotifications(subscription):
         return False
 
     def is_valid_session(session):
-        session['date'] = datetime.datetime.strptime(session['date'], cowin.DateFormat).date()
+        session_date = datetime.datetime.strptime(session['date'], cowin.DateFormat).date()
         
         valid = ((subscription.start_date is None) and \
                 (subscription.end_date is None)) or \
-            (subscription.start_date <= session['date'] <= subscription.end_date) and \
+            (subscription.start_date <= session_date <= subscription.end_date) and \
             (int(session['available_capacity']) > 0) and \
             (subscription.old or (session['min_age_limit']==18)) and \
             ((subscription.flavor is None) or (subscription.flavor==session['vaccine'].lower()))
