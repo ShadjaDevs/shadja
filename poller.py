@@ -9,8 +9,7 @@ from models import Pincode, Subscription
 from sessions import *
 import cowin
 import notify
-from extensions import db
-from shadja import celery
+from shadja import celery, db
 
 # Read the database to find which pincodes to query
 def getAllPincodes():
