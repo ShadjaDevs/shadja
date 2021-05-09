@@ -163,7 +163,7 @@ def refreshAllPINs():
 
 @celery.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(30, refreshAllPINs.s(), name='Refresh all pins') # 30s
+    sender.add_periodic_task(900, refreshAllPINs.s(), name='Refresh all pins') # 30s
 
 if __name__=='__main__':
     # queryCoWIN.delay(560008)
