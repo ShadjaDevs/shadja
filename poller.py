@@ -5,11 +5,11 @@ Script to be called by the cron job periodically to query CoWIN and update subsc
 import datetime
 from collections import defaultdict
 
-from models import Pincode, Subscription
 from sessions import *
 import cowin
 import notify
 from shadja import celery, db
+from models import Pincode, Subscription
 
 # Read the database to find which pincodes to query
 def getAllPincodes():

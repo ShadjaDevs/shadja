@@ -4,6 +4,7 @@ Module with python wrappers for CoWIN's public REST APIs
 
 import datetime
 import requests
+from fake_useragent import UserAgent
 
 BaseURL = 'https://cdn-api.co-vin.in/api'
 Version = 'v2'
@@ -36,8 +37,10 @@ def findDailySessionsByPin(pincode, date=None):
         'pincode': pincode,
         'date': date.strftime(DateFormat)
     }
-
-    response = requests.get(url, params=params)
+    
+    user_agent = UserAgent()
+    headers = {'User-Agent': user_agent.random}
+    response = requests.get(url, params=params, headers=headers)
     response.raise_for_status()
     return response.json()
 
@@ -57,7 +60,9 @@ def findWeeklySessionsByPin(pincode, date=None):
         'date': date.strftime(DateFormat)
     }
 
-    response = requests.get(url, params=params)
+    user_agent = UserAgent()
+    headers = {'User-Agent': user_agent.random}
+    response = requests.get(url, params=params, headers=headers)
     response.raise_for_status()
     return response.json()
 
