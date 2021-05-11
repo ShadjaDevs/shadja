@@ -17,7 +17,7 @@ class Pincode(db.Model):
     availabilities = db.Column(db.JSON)
     # hash of all availabilities, using Session.hash_many()
     availabilities_hash = db.Column(db.String(24))
-    subscrptions = db.relationship(
+    subscriptions = db.relationship(
         "Subscription", 
         secondary=subscription_pincode,
         lazy=True, 
