@@ -1,0 +1,70 @@
+<!-- HTML + JS for rendering the bounding boxes (viewport) of different
+pincodes obtained from Google's geolocation service
+Expected data format: a hash map of:
+  key: pincode
+  value: hash map with at least one key called 'viewport' with following keys
+    'southwest': {'lat': xyz, 'lng': abc}
+    'northeast': {'lat': xyz, 'lng': abc}
+Derived of Google's stock example for drawing bounding boxes on a map.
+NOT guaranteed to be optimal. Look out for your API quotas.-->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Rectangles</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <style type="text/css">
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      #map {
+        height: 100%;
+      }
+
+      /* Optional: Makes the sample page fill the window. */
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script>
+      // This example adds a red rectangle to a map.
+      function initMap() {
+        // Add the JSON data obtained from google APIs here as a hash map
+        var json_obj = <YOUR_JSON_DATA_HERE>
+        const map = new google.maps.Map(document.getElementById("map"), {
+          zoom: 5,
+          // This is India's geographical center
+          center: { lat: 20.593684, lng: 78.96288 },
+        });
+
+        Object.keys(json_obj).forEach(function (key) { 
+            // iteration code
+            var bounds = new google.maps.LatLngBounds(
+                new google.maps.LatLng(json_obj[key]['viewport']['southwest']['lat'], json_obj[key]['viewport']['southwest']['lng']),
+                new google.maps.LatLng(json_obj[key]['viewport']['northeast']['lat'], json_obj[key]['viewport']['northeast']['lng'])
+                );
+            rectangle = new google.maps.Rectangle({
+                strokeColor: "#FF0000",
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: "#FF0000",
+                fillOpacity: 0.35,
+                map,
+                bounds: bounds,
+            });
+        })
+      }
+    </script>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <!-- Async script executes immediately and must be after any DOM elements used in callback. -->
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY_HERE&callback=initMap&libraries=&v=weekly"
+      async
+    ></script>
+  </body>
+</html>

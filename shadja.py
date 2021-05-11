@@ -10,7 +10,7 @@ app = Flask(__name__)
 app.config.from_envvar('SHADJA_SETTINGS')
 
 # set up database
-db, app = make_db(app)
+db, mg, app = make_db(app)
 migrate = Migrate(app, db)
 from models import *
 
@@ -21,6 +21,9 @@ metrics.init_app(app)
 # Status codes used
 SuccessCode = 200
 FailureCode = 400
+
+# These are the radii present in the mongoDB (precomputed)
+ValidRadii = [5, 10, 25, 50]
 
 @app.route("/")
 def home():
@@ -174,7 +177,7 @@ def remove_subscription(uid):
     resp_json['success'] = True
     return resp_json, SuccessCode
 
-@app.route('/nearby_codes/<pincode>/<radius>', methods=['GET'])
+@app.route('/nearby_pincodes/<pincode>/<radius>', methods=['GET'])
 def nearby_codes(pincode, radius):
     '''
     Endpoint used to post OTP
@@ -183,12 +186,33 @@ def nearby_codes(pincode, radius):
     resp_json = {}
     resp_json['success'] = False
 
-    if not (pincode.isdigit() and (100000 <= pincode <= 999999)):
+    if not (pincode.isdigit() and (100000 <= int(pincode) <= 999999)):
         resp_json['error'] = 'Specify a valid pincode'
         return resp_json, FailureCode
 
-    resp_json[pincode] = []
+    if not (radius.isdigit() and (int(radius) in ValidRadii)):
+        resp_json['error'] = 'Specify a valid radius'
+        return resp_json, FailureCode
 
+    pincode = int(pincode)
+    entry = mg.db.nearby_pincodes.find_one({'key': pincode})
+
+    # TODO: Maybe doing a blanket try-except will simplify this
+    # But we run the risk of masking other errors.
+    if not (
+        (entry is not None) and
+        isinstance(entry, dict) and
+        ('value' in entry) and
+        isinstance(entry['value'], dict) and
+        (radius in entry['value']) and
+        isinstance(entry['value'][radius],list)):
+
+        resp_json['error'] = 'No entry found for this pincode-radius pair'
+        return resp_json, FailureCode
+
+    # Get all the pincodes lesser than or equal to this radius
+    pincodes = list(codes for r, codes in entry['value'].items() if (int(r)<=int(radius)))
+    resp_json['pincodes'] = sorted(code for codes in pincodes for code in codes)
     resp_json['success'] = True
     return resp_json, SuccessCode
 

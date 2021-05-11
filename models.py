@@ -2,7 +2,7 @@ import json
 from sqlalchemy_utils import UUIDType
 import uuid
 
-from shadja import db
+from shadja import db, mg
 
 '''
 Contains all models

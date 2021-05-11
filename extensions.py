@@ -1,17 +1,23 @@
 import os
 
+from flask_pymongo import PyMongo
 from flask_sqlalchemy import SQLAlchemy
 from celery import Celery
 from prometheus_flask_exporter import PrometheusMetrics
 
 # DATABASE
 def make_db(app):
+    # SQL
     db = SQLAlchemy()
     MYSQL_PASSWORD = app.config.get("MYSQL_PASSWORD")
     MYSQL_STRING = f"mysql://shadja:{MYSQL_PASSWORD}@localhost/shadja_dev"
     app.config["SQLALCHEMY_DATABASE_URI"] = MYSQL_STRING
     db.init_app(app)
-    return db, app
+
+    # Mongo
+    mg = PyMongo()
+    mg.init_app(app)
+    return db, mg, app
 
 # CELERY AND RABBITMQ
 def make_celery(app):
