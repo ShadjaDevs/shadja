@@ -133,7 +133,6 @@ def processNotifications(subscription):
         subscription.notification_hash = session.hash_calendars(available_centers)
         db.session.commit()
 
-
 @celery.task
 def queryCoWIN(pincode):
     '''Query CoWIN and update consumers of any relevant slots'''
