@@ -8,6 +8,7 @@ from collections import defaultdict
 from sessions import *
 import cowin
 import notify
+import utils
 from shadja import celery, db
 from models import Pincode, Subscription
 
@@ -51,7 +52,7 @@ def processNotifications(subscription):
         return False
 
     def is_valid_session(session):
-        session_date = datetime.datetime.strptime(session['date'], cowin.DateFormat).date()
+        session_date = datetime.datetime.strptime(session['date'], utils.DateFormat).date()
         
         valid = ((subscription.start_date is None) and \
                 (subscription.end_date is None)) or \
@@ -64,8 +65,8 @@ def processNotifications(subscription):
     def is_valid_slot(slot):
         start_time, _, end_time = slot.partition('-')
 
-        start_time = datetime.datetime.strptime(start_time, cowin.TimeFormat).time()
-        end_time   = datetime.datetime.strptime(end_time, cowin.TimeFormat).time()
+        start_time = datetime.datetime.strptime(start_time, utils.TimeFormat).time()
+        end_time   = datetime.datetime.strptime(end_time, utils.TimeFormat).time()
 
         # Need to find out if this slot has any overlap with the slot user is requesting
         # Interestingly, this is not trivial

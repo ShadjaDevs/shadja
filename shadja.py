@@ -13,6 +13,7 @@ app.config.from_envvar('SHADJA_SETTINGS')
 db, mg, app = make_db(app)
 migrate = Migrate(app, db)
 from models import *
+import notify
 
 # other extensions
 celery = make_celery(app)
@@ -22,16 +23,12 @@ metrics.init_app(app)
 SuccessCode = 200
 FailureCode = 400
 
-# These are the radii present in the mongoDB (precomputed)
-ValidRadii = [5, 10, 25, 50]
-
 @app.route("/")
 def home():
     return render_template('index.html')
 
-@app.route('/update_subscription/<uid>', methods=['POST'])
 @app.route('/add_subscription', methods=['POST'])
-def add_subscription(uid=None):
+def add_subscription():
     '''End point to be used by front end to post form data.
     Can also be used by third party clients to add new subscriptions'''
 
@@ -49,7 +46,7 @@ def add_subscription(uid=None):
     notify_channel = ['email', 'mobile', 'telegram_id']
 
     # Check if bare minimum entries are ready
-    if not all(x in in_json for x in required_keys):
+    if not all(in_json.get(x) is not None for x in required_keys):
         resp_json['error'] = 'One or more required fields missing'
         return resp_json, FailureCode
 
@@ -64,8 +61,8 @@ def add_subscription(uid=None):
         'pincodes': list,
         'want_free': bool,
         'flavor': str,
-        'start_date': datetime.datetime,
-        'end_date': datetime.datetime,
+        'start_date': str,
+        'end_date': str,
         'email': str,
         'mobile': int,
         'telegram_id': str
@@ -75,15 +72,26 @@ def add_subscription(uid=None):
         resp_json['error'] = 'One or more fields have the wrong type'
         return resp_json, FailureCode
 
-    # TODO: Need more checks for specific inputs like email, phone, pincodes etc.
+    if not (
+        all(utils.isValidPin(pin) for pin in in_json['pincodes']) and
+        ((in_json.get('flavor') is None) or
+            utils.isValidFlavor(in_json['flavor'])) and
+        ((in_json.get('start_date') is None) or
+            utils.isValidDateStr(in_json['start_date'])) and
+        ((in_json.get('end_date') is None) or
+            utils.isValidDateStr(in_json['end_date'])) and
+        ((in_json.get('email') is None) or
+            utils.isValidEmail(in_json['email'])) and
+        ((in_json.get('mobile') is None) or
+            utils.isValidMobile(in_json['mobile'])) and
+        ((in_json.get('telegram_id') is None) or
+            utils.isValidTelegramId(in_json['telegram_id']))):
 
-    if uid is None:
-        subscription = Subscription(old=in_json.get('old'))
-    else:
-        subscription = Subscription.query.filter(Subscription.uuid==uuid.UUID(uid)).first()
+        resp_json['error'] = 'One or more fields have wrong format'
+        return resp_json, FailureCode
 
-    # FIXME: Is this correct way to assign the pincodes?
-    subscription.pincodes = list(Pincode(code) for code in in_json.get('pincodes'))
+    subscription = Subscription(in_json.get('old'), in_json['pincodes'])
+
     subscription.want_free = in_json.get('want_free')
     subscription.flavor = in_json.get('flavor')
     subscription.start_date = in_json.get('start_date')
@@ -104,14 +112,13 @@ def add_subscription(uid=None):
         subscription.otp_email = key
         notify.send_otp_email(subscription, otp)
 
-    if uid is None:
-        db.session.add(subscription)
+    db.session.add(subscription)
     db.session.commit()
 
     resp_json['uuid'] = subscription.uuid
     resp_json['success'] = True
 
-    # # FIXME: Can use this OTP always to login, why anything new?
+    # FIXME: Can use this OTP always to login, why anything new?
     return resp_json, SuccessCode
 
 @app.route('/input_otp/<uid>', methods=['POST'])
@@ -127,7 +134,12 @@ def input_otp(uid):
         resp_json['error'] = 'No JSON payload found'
         return resp_json, FailureCode
 
-    subscription = Subscription.query.filter(Subscription.uuid==uuid.UUID(uid)).first()
+    if not utils.isValidUUID(uid):
+        resp_json['error'] = 'Invalid UUID'
+        return resp_json, FailureCode
+
+    subscription = Subscription.query.filter(
+        Subscription.uuid==uuid.UUID(uid)).first()
     
     if not subscription:
         resp_json['error'] = f'Subscriber with uid={uid} not found'
@@ -142,8 +154,17 @@ def input_otp(uid):
             resp_json['success'] = False
             resp_json['error'] = 'Specify email OTP'
             return resp_json, FailureCode
-        resp_json['verified_email'] = subscription.verified_email = subscription.otp_email==in_json.get('otp_email')
-        resp_json['success'] = resp_json['success'] and subscription.verified_email
+
+        if not utils.isValidOTP(in_json['otp_email']):
+            resp_json['success'] = False
+            resp_json['error'] = 'Invalid OTP format'
+            return resp_json, FailureCode
+
+        subscription.verified_email = \
+            subscription.otp_email==utils.get_hash(in_json.get('otp_email'))
+        resp_json['verified_email'] = subscription.verified_email
+        resp_json['success'] = resp_json['success'] and \
+            subscription.verified_email
     db.session.commit()
 
     if subscription.send_mobile and (not subscription.verified_mobile):
@@ -151,13 +172,46 @@ def input_otp(uid):
             resp_json['success'] = False
             resp_json['error'] = 'Specify mobile OTP'
             return resp_json, FailureCode
-        resp_json['verified_mobile'] = subscription.verified_mobile = subscription.otp_mobile==in_json.get('otp_mobile')
-        resp_json['success'] = resp_json['success'] and subscription.verified_mobile
+
+        if not utils.isValidOTP(in_json['otp_mobile']):
+            resp_json['success'] = False
+            resp_json['error'] = 'Invalid OTP format'
+            return resp_json, FailureCode
+
+        subscription.verified_mobile = \
+            subscription.otp_mobile==utils.get_hash(in_json.get('otp_mobile'))
+        resp_json['verified_mobile'] = subscription.verified_mobile
+        resp_json['success'] = resp_json['success'] and \
+            subscription.verified_mobile
 
     db.session.commit()
     return resp_json, SuccessCode
 
-@app.route('/remove_subscription/<uid>', methods=['DELETE'])
+@app.route('/update_subscription/<uid>', methods=['POST'])
+def update_subscription(uid):
+    resp_json = {}
+    resp_json['success'] = False
+
+    if not request.is_json:
+        resp_json['error'] = 'No JSON payload found'
+        return resp_json, FailureCode
+
+    if not utils.isValidUUID(uid):
+        resp_json['error'] = 'Invalid UUID'
+        return resp_json, FailureCode
+
+    in_json = request.get_json()
+
+    subscription = Subscription.query.filter(
+        Subscription.uuid==uuid.UUID(uid)).first()
+
+    if not subscription:
+        resp_json['error'] = f'Subscriber with uid={uid} not found'
+        return resp_json, FailureCode
+
+    return resp_json, FailureCode
+
+@app.route('/remove_subscription/<uid>', methods=['GET'])
 def remove_subscription(uid):
     '''
     Endpoint used to remove a subscription from the db
@@ -166,10 +220,15 @@ def remove_subscription(uid):
     resp_json = {}
     resp_json['success'] = False
 
-    subscription = Subscription.query.filter(Subscription.uuid==uuid.UUID(uid)).first()
+    if not utils.isValidUUID(uid):
+        resp_json['error'] = 'Invalid UUID'
+        return resp_json, FailureCode
+
+    subscription = Subscription.query.filter(
+        Subscription.uuid==uuid.UUID(uid)).first()
 
     if not subscription:
-        resp_json['error'] = f'Subscriber with uid={uid} not found'
+        resp_json['error'] = 'Subscriber with uuid not found'
         return resp_json, FailureCode
 
     db.session.delete(subscription)
@@ -186,11 +245,11 @@ def nearby_codes(pincode, radius):
     resp_json = {}
     resp_json['success'] = False
 
-    if not (pincode.isdigit() and (100000 <= int(pincode) <= 999999)):
+    if not (pincode.isdigit() and utils.isValidPin(int(pincode))):
         resp_json['error'] = 'Specify a valid pincode'
         return resp_json, FailureCode
 
-    if not (radius.isdigit() and (int(radius) in ValidRadii)):
+    if not (radius.isdigit() and utils.isValidRadius(int(radius))):
         resp_json['error'] = 'Specify a valid radius'
         return resp_json, FailureCode
 
@@ -211,8 +270,10 @@ def nearby_codes(pincode, radius):
         return resp_json, FailureCode
 
     # Get all the pincodes lesser than or equal to this radius
-    pincodes = list(codes for r, codes in entry['value'].items() if (int(r)<=int(radius)))
-    resp_json['pincodes'] = sorted(code for codes in pincodes for code in codes)
+    pincodes = list(
+        codes for r, codes in entry['value'].items() if (int(r)<=int(radius)))
+    resp_json['pincodes'] = sorted(
+        code for codes in pincodes for code in codes)
     resp_json['success'] = True
     return resp_json, SuccessCode
 

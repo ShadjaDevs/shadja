@@ -54,16 +54,17 @@ class Subscription(db.Model):
     verified_email = db.Column(db.Boolean)
     verified_mobile = db.Column(db.Boolean)
     verified_telegram = db.Column(db.Boolean)
-    otp_email = db.Column(db.Integer)
-    otp_mobile = db.Column(db.Integer)
-    otp_telegram = db.Column(db.Integer)
-    # UUID for tacking OTPs
+    otp_email = db.Column(db.String(64))
+    otp_mobile = db.Column(db.String(64))
+    otp_telegram = db.Column(db.String(64))
+    # UUID for tracking OTPs
     uuid = db.Column(UUIDType(binary=True))
     # hash of all sessions included in notification using Session.hash_many()
     notification_hash = db.Column(db.String(24))
 
-    def __init__(self, old):
+    def __init__(self, old, pincodes):
         self.old = old
+        self.pincodes = list(Pincode(code) for code in pincodes)
         self.uuid = uuid.uuid4()
 
     def __repr__(self):
