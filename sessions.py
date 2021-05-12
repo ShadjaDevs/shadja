@@ -50,3 +50,6 @@ def hash_calendar(calendar):
             [{**center, **s} for s in sessions] 
         ))
     return hash(frozenset(Counter((h for h in all_hashes))))
+
+def hash_calendars(calendars):
+    return hash(frozenset(Counter((hash_calendar(c) for c in calendars)).items()))

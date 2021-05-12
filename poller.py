@@ -4,15 +4,12 @@ Script to be called by the cron job periodically to query CoWIN and update subsc
 
 import datetime
 from collections import defaultdict
-from celery import Celery
 
-from models import Pincode, Subscription
-from shadja import db
 from sessions import *
 import cowin
 import notify
-
-app = Celery('poller', broker='pyamqp://guest@localhost')
+from shadja import celery, db
+from models import Pincode, Subscription
 
 # Read the database to find which pincodes to query
 def getAllPincodes():
@@ -27,7 +24,6 @@ def updateCoWINData(pincode):
     '''Get CoWIN data for given pincode and write to a database'''
     # TODO: Current implementation will give slots for next week. What about the dates in the future?
     data = cowin.findWeeklySessionsByPin(pincode.code)
-    print(data)
     data_hashed = str(hash_calendar(data))
     if pincode.availabilities_hash != data_hashed:
         pincode.availabilities = data
@@ -39,6 +35,9 @@ def updateCoWINData(pincode):
     return False
 
 def processNotifications(subscription):
+    def is_valid_subscriber(subscription):
+        return subscription.verified_telegram or subscription.verified_mobile or subscription.verified_email
+
     '''Notify the subscriptions if there are new slots opening up'''
 
     # Define functions for this subscription
@@ -52,11 +51,11 @@ def processNotifications(subscription):
         return False
 
     def is_valid_session(session):
-        session['date'] = datetime.datetime.strptime(session['date'], cowin.DateFormat).date()
+        session_date = datetime.datetime.strptime(session['date'], cowin.DateFormat).date()
         
         valid = ((subscription.start_date is None) and \
                 (subscription.end_date is None)) or \
-            (subscription.start_date <= session['date'] <= subscription.end_date) and \
+            (subscription.start_date <= session_date <= subscription.end_date) and \
             (int(session['available_capacity']) > 0) and \
             (subscription.old or (session['min_age_limit']==18)) and \
             ((subscription.flavor is None) or (subscription.flavor==session['vaccine'].lower()))
@@ -76,6 +75,9 @@ def processNotifications(subscription):
             ((subscription.start_time <= end_time) and \
              (subscription.end_time >= start_time))
         return valid
+    
+    if not is_valid_subscriber(subscription):
+        return
 
     # Find all valid slots in the pincodes
     available_centers = defaultdict(list)
@@ -113,20 +115,25 @@ def processNotifications(subscription):
             sessions = list(filter(lambda session: len(session['slots'])>0, sessions))
             if len(sessions) > 0:
                 center['sessions'] = sessions
-                available_centers[pincode].append(center)
+                available_centers[pincode.code].append(center)
 
     # Send the notification
     # TODO: If previously informed of the same, should you still do? May be yes
-    if subscription.email:
-        notify.notify_email(subscription, available_centers)
+    sent_e, sent_m, sent_t = False, False, False
+    if subscription.email and subscription.verified_email:
+        sent_e = notify.notify_email(subscription, available_centers)
 
-    if consumer.mobile:
-        notify_mobile(consumer, available_centers)
+    if consumer.mobile and subscription.verified_mobile:
+        sent_m = notify.notify_mobile(consumer, available_centers)
 
-    if consumer.telegram_id:
-        notify_telegram(consumer, available_centers)
+    if consumer.telegram_id and subscription.verified_telegram:
+        sent_t = notify.notify_telegram(consumer, available_centers)
 
-@app.task
+    if sent_e or sent_m or sent_t:
+        subscription.notification_hash = session.hash_calendars(available_centers)
+        db.session.commit()
+
+@celery.task
 def queryCoWIN(pincode):
     '''Query CoWIN and update consumers of any relevant slots'''
     # Get data from CoWIN for each of these pincodes and update internal DB
@@ -146,16 +153,16 @@ def queryCoWIN(pincode):
             ):
             processNotifications(subscription)
 
-@app.task
+@celery.task
 def refreshAllPINs():
     for pincode in Pincode.query.all():
         if len(pincode.subscriptions) > 0:
             queryCoWIN.delay(pincode.code)
 
-@app.on_after_configure.connect
+@celery.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(3, refreshAllPINs.s(), name='Refresh all pins')
+    sender.add_periodic_task(900, refreshAllPINs.s(), name='Refresh all pins') # 30s
 
 if __name__=='__main__':
-    # queryCoWIN(560008)
+    # queryCoWIN.delay(560008)
     pass

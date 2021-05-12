@@ -1,6 +1,7 @@
 import json
 
 from shadja import db
+
 '''
 Contains all models
 '''
@@ -48,7 +49,13 @@ class Subscription(db.Model):
     send_email = db.Column(db.Boolean)
     send_mobile = db.Column(db.Boolean)
     send_telegram = db.Column(db.Boolean)
-    # hash of all sessions included in notificaion using Session.hash_many()
+    verified_email = db.Column(db.Boolean)
+    verified_mobile = db.Column(db.Boolean)
+    verified_telegram = db.Column(db.Boolean)
+    otp_email = db.Column(db.Integer)
+    otp_mobile = db.Column(db.Integer)
+    otp_telegram = db.Column(db.Integer)
+    # hash of all sessions included in notification using Session.hash_many()
     notification_hash = db.Column(db.String(24))
 
     def __init__(self, old, want_free, flavor):
