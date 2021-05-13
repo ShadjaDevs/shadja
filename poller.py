@@ -137,6 +137,7 @@ def processNotifications(subscription):
             # Filter out sessions with no valid slots
             sessions = list(filter(
                 lambda session: len(session['slots'])>0, sessions))
+
             if len(sessions) > 0:
                 center['sessions'] = sessions
                 available_centers[pincode.code].append(center)

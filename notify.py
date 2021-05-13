@@ -19,7 +19,6 @@ UnsubscribeURL = 'https://api.bookmyvaccine.app/remove_subscription/{0}'
 def notify_email(subscription, available_centers):
     '''Send an email using a bootstrap template with availability
     of slots'''
-
     bodyText = json.dumps(available_centers)
     bodyHtml = jinja2.Template(
         open('templates/email_slot_template.html').read()).render(
