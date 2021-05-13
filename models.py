@@ -1,6 +1,8 @@
 import json
+from sqlalchemy_utils import UUIDType
+import uuid
 
-from shadja import db
+from shadja import db, mg
 
 '''
 Contains all models
@@ -52,16 +54,43 @@ class Subscription(db.Model):
     verified_email = db.Column(db.Boolean)
     verified_mobile = db.Column(db.Boolean)
     verified_telegram = db.Column(db.Boolean)
-    otp_email = db.Column(db.Integer)
-    otp_mobile = db.Column(db.Integer)
-    otp_telegram = db.Column(db.Integer)
+    otp_email = db.Column(db.String(64))
+    otp_mobile = db.Column(db.String(64))
+    otp_telegram = db.Column(db.String(64))
+    # UUID for tracking OTPs
+    uuid = db.Column(UUIDType(binary=True))
     # hash of all sessions included in notification using Session.hash_many()
     notification_hash = db.Column(db.String(24))
 
-    def __init__(self, old, want_free, flavor):
+    def __init__(self, old, pincodes):
         self.old = old
-        self.want_free = want_free
-        self.flavor = flavor
+        self.uuid = uuid.uuid4()
+
+        # Create Pincode instances if they do not exist
+        self.pincodes = create_pincodes(pincodes)
+        # Make sure nothing was missed
+        assert(len(self.pincodes)==len(pincodes))
 
     def __repr__(self):
         return f'Subscription<old:{self.old} want_free:{self.want_free} flavor:{self.flavor}>'
+
+def create_pincodes(pincodes):
+    '''
+    Create a pincode only if it does not exist already
+    http://stackoverflow.com/questions/2546207/does-sqlalchemy-have-an-equivalent-of-djangos-get-or-create
+    '''
+    instances = Pincode.query.filter(Pincode.code.in_(pincodes)).all()
+
+    missing_pincodes = set(pincodes) - set(x.code for x in instances)
+
+    for pincode in missing_pincodes:
+        instance = Pincode(pincode)
+        try:
+            db.session.add(instance)
+            db.session.commit()
+        except IntegrityError:
+            # This is when another thread created the same pincode
+            db.session.rollback()
+            instance = Pincode.query.filter(Pincode.code==pincode).first()
+        instances.append(instance)
+    return instances

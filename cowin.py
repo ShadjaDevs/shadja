@@ -4,15 +4,13 @@ Module with python wrappers for CoWIN's public REST APIs
 
 import datetime
 import requests
+import utils
 from fake_useragent import UserAgent
 
 BaseURL = 'https://cdn-api.co-vin.in/api'
 Version = 'v2'
 AppointmentPath = 'appointment/sessions/public'
 AppointmentEp = '/'.join([BaseURL, Version, AppointmentPath])
-
-DateFormat = '%d-%m-%Y'
-TimeFormat = '%I:%M%p'
 
 def isValidPin(pincode):
     '''Check if supplied PIN is valid'''
@@ -35,7 +33,7 @@ def findDailySessionsByPin(pincode, date=None):
     url = '/'.join([AppointmentEp, 'findByPin'])
     params = {
         'pincode': pincode,
-        'date': date.strftime(DateFormat)
+        'date': date.strftime(utils.DateFormat)
     }
     
     user_agent = UserAgent()
@@ -57,7 +55,7 @@ def findWeeklySessionsByPin(pincode, date=None):
     url = '/'.join([AppointmentEp, 'calendarByPin'])
     params = {
         'pincode': pincode,
-        'date': date.strftime(DateFormat)
+        'date': date.strftime(utils.DateFormat)
     }
 
     user_agent = UserAgent()
