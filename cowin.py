@@ -13,7 +13,7 @@ AppointmentPath = 'appointment/sessions/public'
 AppointmentEp = '/'.join([BaseURL, Version, AppointmentPath])
 PERIOD_TO_API_STRING = {
     "day": "findBy",
-    "week": "CalendarBy"
+    "week": "calendarBy"
 }
 
 def isValidPin(pincode):
