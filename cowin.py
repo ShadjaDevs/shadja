@@ -11,9 +11,14 @@ BaseURL = 'https://cdn-api.co-vin.in/api'
 Version = 'v2'
 AppointmentPath = 'appointment/sessions/public'
 AppointmentEp = '/'.join([BaseURL, Version, AppointmentPath])
+
 PERIOD_TO_API_STRING = {
     "day": "findBy",
     "week": "calendarBy"
+}
+JURISDICTION_TO_ID_NAME = {
+    "District": "district_id",
+    "Pin": "pincode"
 }
 
 def isValidPin(pincode):
@@ -63,7 +68,7 @@ def findAppointments(jurisdiction, period, region_id, date=None):
 
     url = '/'.join([AppointmentEp, api])
     params = {
-        'region_id': region_id,
+        JURISDICTION_TO_ID_NAME[jurisdiction]: region_id,
         'date': date.strftime(utils.DateFormat)
     }
     
