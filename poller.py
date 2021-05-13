@@ -23,7 +23,8 @@ def getAllSubscriptions():
 
 def updateCoWINData(pincode):
     '''Get CoWIN data for given pincode and write to a database'''
-    # TODO: Current implementation will give slots for next week. What about the dates in the future?
+    # TODO: Current implementation will give slots for next week.
+    # What about the dates in the future?
     data = cowin.findWeeklySessionsByPin(pincode.code)
     data_hashed = str(hash_calendar(data))
     if pincode.availabilities_hash != data_hashed:
@@ -37,7 +38,9 @@ def updateCoWINData(pincode):
 
 def processNotifications(subscription):
     def is_valid_subscriber(subscription):
-        return subscription.verified_telegram or subscription.verified_mobile or subscription.verified_email
+        return (subscription.verified_telegram or
+            subscription.verified_mobile or
+            subscription.verified_email)
 
     '''Notify the subscriptions if there are new slots opening up'''
 
@@ -51,12 +54,23 @@ def processNotifications(subscription):
                     (subscription.want_free == (center['fee_type']=='Free')))
         return False
 
+    def is_valid_date(session_date):
+        '''Check if the date of this session is ok for this subscriber'''
+        start_ok = ((subscription.start_date is None) or
+            (session_date >= subscription.start_date))
+
+        end_ok = ((subscription.end_date is None) or
+            (session_date <= subscription.end_date))
+
+        return start_ok and end_ok
+
     def is_valid_session(session):
-        session_date = datetime.datetime.strptime(session['date'], utils.DateFormat).date()
+        '''Session is ok only if there are non-zero slots and the session
+        is within the preferences given by the subscriber'''
+        session_date = datetime.datetime.strptime(
+            session['date'], utils.DateFormat).date()
         
-        valid = ((subscription.start_date is None) and \
-                (subscription.end_date is None)) or \
-            (subscription.start_date <= session_date <= subscription.end_date) and \
+        valid = is_valid_date(subscription, session_date) and \
             (int(session['available_capacity']) > 0) and \
             (subscription.old or (session['min_age_limit']==18)) and \
             ((subscription.flavor is None) or (subscription.flavor==session['vaccine'].lower()))
@@ -65,8 +79,15 @@ def processNotifications(subscription):
     def is_valid_slot(slot):
         start_time, _, end_time = slot.partition('-')
 
-        start_time = datetime.datetime.strptime(start_time, utils.TimeFormat).time()
-        end_time   = datetime.datetime.strptime(end_time, utils.TimeFormat).time()
+        start_time = datetime.datetime.strptime(
+            start_time,
+            utils.TimeFormat
+        ).time()
+
+        end_time = datetime.datetime.strptime(
+            end_time,
+            utils.TimeFormat
+        ).time()
 
         # Need to find out if this slot has any overlap with the slot user is requesting
         # Interestingly, this is not trivial
@@ -108,18 +129,27 @@ def processNotifications(subscription):
                 if 'slots' not in session:
                     continue
 
-                # Figure out if this custmer is interested in
+                # Figure out if this customer is interested in
                 # the slots offered
-                session['slots'] = list(filter(is_valid_slot, session['slots']))
+                session['slots'] = list(filter(
+                    is_valid_slot, session['slots']))
 
             # Filter out sessions with no valid slots
-            sessions = list(filter(lambda session: len(session['slots'])>0, sessions))
+            sessions = list(filter(
+                lambda session: len(session['slots'])>0, sessions))
             if len(sessions) > 0:
                 center['sessions'] = sessions
                 available_centers[pincode.code].append(center)
 
     # Send the notification
-    # TODO: If previously informed of the same, should you still do? May be yes
+    # if new notification is same as the last one sent, then don't send
+    # if there are no available centers, also don't send
+    new_notification_hash = session.hash_calendars(available_centers)
+    if ((not available_centers) or
+        (new_notification_hash == subscription.notification_hash)):
+
+        return
+
     sent_e, sent_m, sent_t = False, False, False
     if subscription.email and subscription.verified_email:
         sent_e = notify.notify_email(subscription, available_centers)
@@ -131,9 +161,8 @@ def processNotifications(subscription):
         sent_t = notify.notify_telegram(consumer, available_centers)
 
     if sent_e or sent_m or sent_t:
-        subscription.notification_hash = session.hash_calendars(available_centers)
+        subscription.notification_hash = new_notification_hash
         db.session.commit()
-
 
 @celery.task
 def queryCoWIN(pincode):
@@ -163,7 +192,11 @@ def refreshAllPINs():
 
 @celery.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(900, refreshAllPINs.s(), name='Refresh all pins') # 30s
+    sender.add_periodic_task(
+        900, # 30s
+        refreshAllPINs.s(),
+        name='Refresh all pins'
+    )
 
 if __name__=='__main__':
     # queryCoWIN.delay(560008)
