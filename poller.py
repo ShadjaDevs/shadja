@@ -113,12 +113,17 @@ def processNotifications(subscription):
 
             # Filter out sessions with no valid slots
             sessions = list(filter(lambda session: len(session['slots'])>0, sessions))
+
             if len(sessions) > 0:
                 center['sessions'] = sessions
                 available_centers[pincode.code].append(center)
 
     # Send the notification
-    # TODO: If previously informed of the same, should you still do? May be yes
+    # if new notification is same as the last one sent, then don't send 
+    new_notification_hash = session.hash_calendars(available_centers)
+    if new_notification_hash == subscription.notification_hash:
+        return
+
     sent_e, sent_m, sent_t = False, False, False
     if subscription.email and subscription.verified_email:
         sent_e = notify.notify_email(subscription, available_centers)
@@ -130,7 +135,7 @@ def processNotifications(subscription):
         sent_t = notify.notify_telegram(consumer, available_centers)
 
     if sent_e or sent_m or sent_t:
-        subscription.notification_hash = session.hash_calendars(available_centers)
+        subscription.notification_hash = new_notification_hash
         db.session.commit()
 
 
