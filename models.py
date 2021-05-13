@@ -64,8 +64,33 @@ class Subscription(db.Model):
 
     def __init__(self, old, pincodes):
         self.old = old
-        self.pincodes = list(Pincode(code) for code in pincodes)
         self.uuid = uuid.uuid4()
+
+        # Create Pincode instances if they do not exist
+        self.pincodes = create_pincodes(pincodes)
+        # Make sure nothing was missed
+        assert(len(self.pincodes)==len(pincodes))
 
     def __repr__(self):
         return f'Subscription<old:{self.old} want_free:{self.want_free} flavor:{self.flavor}>'
+
+def create_pincodes(pincodes):
+    '''
+    Create a pincode only if it does not exist already
+    http://stackoverflow.com/questions/2546207/does-sqlalchemy-have-an-equivalent-of-djangos-get-or-create
+    '''
+    instances = Pincode.query.filter(Pincode.code.in_(pincodes)).all()
+
+    missing_pincodes = set(pincodes) - set(x.code for x in instances)
+
+    for pincode in missing_pincodes:
+        instance = Pincode(pincode)
+        try:
+            db.session.add(instance)
+            db.session.commit()
+        except IntegrityError:
+            # This is when another thread created the same pincode
+            db.session.rollback()
+            instance = Pincode.query.filter(Pincode.code==pincode).first()
+        instances.append(instance)
+    return instances

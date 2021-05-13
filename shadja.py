@@ -1,7 +1,8 @@
 import datetime
+import uuid
+
 from flask import Flask, render_template, request
 from flask_migrate import Migrate
-import uuid
 
 from extensions import make_db, metrics, make_celery
 import utils
@@ -162,11 +163,11 @@ def input_otp(uid):
 
         subscription.verified_email = \
             subscription.otp_email==utils.get_hash(in_json.get('otp_email'))
+        db.session.commit()
         resp_json['verified_email'] = subscription.verified_email
         resp_json['success'] = resp_json['success'] and \
             subscription.verified_email
-    db.session.commit()
-
+    
     if subscription.send_mobile and (not subscription.verified_mobile):
         if 'otp_mobile' not in in_json:
             resp_json['success'] = False
@@ -180,11 +181,11 @@ def input_otp(uid):
 
         subscription.verified_mobile = \
             subscription.otp_mobile==utils.get_hash(in_json.get('otp_mobile'))
+        db.session.commit()
         resp_json['verified_mobile'] = subscription.verified_mobile
         resp_json['success'] = resp_json['success'] and \
             subscription.verified_mobile
 
-    db.session.commit()
     return resp_json, SuccessCode
 
 @app.route('/update_subscription/<uid>', methods=['POST'])
