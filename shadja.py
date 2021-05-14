@@ -108,7 +108,7 @@ def add_subscription(uid=None):
             return resp_json, FailureCode
 
         subscription.old = in_json.get('old')
-        subscription.pincodes = models.create_pincodes(in_json['pincodes'])
+        subscription.pincodes = create_pincodes(in_json['pincodes'])
 
     subscription.want_free = in_json.get('want_free')
     subscription.flavor = in_json.get('flavor')
@@ -231,8 +231,8 @@ def get_subscription(uid):
         return resp_json, FailureCode
 
     # TODO: Populate out_json
-    out_data =  { c.key: getattr(obj, c.key)
-        for c in inspect(obj).mapper.column_attrs }
+    out_data =  { c.key: getattr(subscription, c.key)
+        for c in inspect(subscription).mapper.column_attrs }
 
     remove_keys = [
         'id',
