@@ -3,6 +3,7 @@ import uuid
 
 from flask import Flask, render_template, request
 from flask_migrate import Migrate
+from sqlalchemy import inspect
 
 from extensions import make_db, metrics, make_celery
 import utils
@@ -28,8 +29,9 @@ FailureCode = 400
 def home():
     return render_template('index.html')
 
+@app.route('/update_subscription/<uid>', methods=['POST'])
 @app.route('/add_subscription', methods=['POST'])
-def add_subscription():
+def add_subscription(uid=None):
     '''End point to be used by front end to post form data.
     Can also be used by third party clients to add new subscriptions'''
 
@@ -38,6 +40,10 @@ def add_subscription():
 
     if not request.is_json:
         resp_json['error'] = 'No JSON payload found'
+        return resp_json, FailureCode
+
+    if not ((uid is None) or utils.isValidUUID(uid)):
+        resp_json['error'] = 'Invalid UUID'
         return resp_json, FailureCode
 
     in_json = request.get_json()
@@ -91,35 +97,51 @@ def add_subscription():
         resp_json['error'] = 'One or more fields have wrong format'
         return resp_json, FailureCode
 
-    subscription = Subscription(in_json.get('old'), in_json['pincodes'])
+    if uid is None:
+        subscription = Subscription(in_json.get('old'), in_json['pincodes'])
+    else:
+        subscription = Subscription.query.filter(
+            Subscription.uuid==uuid.UUID(uid)).first()
+
+        if not subscription:
+            resp_json['error'] = f'Subscriber with uuid={uid} not found'
+            return resp_json, FailureCode
+
+        subscription.old = in_json.get('old')
+        subscription.pincodes = models.create_pincodes(in_json['pincodes'])
 
     subscription.want_free = in_json.get('want_free')
     subscription.flavor = in_json.get('flavor')
     subscription.start_date = in_json.get('start_date')
     subscription.end_date = in_json.get('end_date')
-    subscription.email = in_json.get('email')
-    subscription.mobile = in_json.get('mobile')
-    subscription.telegram_id = in_json.get('telegram_id')
-    subscription.send_email = 'email' in in_json
-    subscription.send_mobile = 'mobile' in in_json
-    subscription.send_telegram = 'telegram_id' in in_json
 
-    if in_json.get('mobile'):
+    # Allow only adding new channels, cannot delete
+    if (uid is None) or (not subscription.verified_email):
+        subscription.email = in_json.get('email')
+        subscription.send_email = 'email' in in_json
+    if (uid is None) or (not subscription.verified_mobile):
+        subscription.mobile = in_json.get('mobile')
+        subscription.send_mobile = 'mobile' in in_json
+    if (uid is None) or (not subscription.verified_telegram):
+        subscription.telegram_id = in_json.get('telegram_id')
+        subscription.send_telegram = 'telegram_id' in in_json
+
+    if in_json.get('mobile') and (not subscription.verified_mobile):
         otp, key = utils.get_otp_hash()
         subscription.otp_mobile = key
         # TODO: Send otp as SMS
-    if in_json.get('email'):
+    if in_json.get('email') and (not subscription.verified_email):
         otp, key = utils.get_otp_hash()
         subscription.otp_email = key
         notify.send_otp_email(subscription, otp)
 
-    db.session.add(subscription)
+    if uid is None:
+        db.session.add(subscription)
     db.session.commit()
 
     resp_json['uuid'] = subscription.uuid
     resp_json['success'] = True
 
-    # FIXME: Can use this OTP always to login, why anything new?
     return resp_json, SuccessCode
 
 @app.route('/input_otp/<uid>', methods=['POST'])
@@ -163,11 +185,11 @@ def input_otp(uid):
 
         subscription.verified_email = \
             subscription.otp_email==utils.get_hash(in_json.get('otp_email'))
-        db.session.commit()
         resp_json['verified_email'] = subscription.verified_email
         resp_json['success'] = resp_json['success'] and \
             subscription.verified_email
-    
+    db.session.commit()
+
     if subscription.send_mobile and (not subscription.verified_mobile):
         if 'otp_mobile' not in in_json:
             resp_json['success'] = False
@@ -181,36 +203,51 @@ def input_otp(uid):
 
         subscription.verified_mobile = \
             subscription.otp_mobile==utils.get_hash(in_json.get('otp_mobile'))
-        db.session.commit()
         resp_json['verified_mobile'] = subscription.verified_mobile
         resp_json['success'] = resp_json['success'] and \
             subscription.verified_mobile
 
+    db.session.commit()
     return resp_json, SuccessCode
 
-@app.route('/update_subscription/<uid>', methods=['POST'])
-def update_subscription(uid):
+@app.route('/get_subscription/<uid>', methods=['GET'])
+def get_subscription(uid):
+    '''
+    Endpoint used to get a subscription from the db
+    '''
+
     resp_json = {}
     resp_json['success'] = False
-
-    if not request.is_json:
-        resp_json['error'] = 'No JSON payload found'
-        return resp_json, FailureCode
 
     if not utils.isValidUUID(uid):
         resp_json['error'] = 'Invalid UUID'
         return resp_json, FailureCode
 
-    in_json = request.get_json()
-
     subscription = Subscription.query.filter(
         Subscription.uuid==uuid.UUID(uid)).first()
 
     if not subscription:
-        resp_json['error'] = f'Subscriber with uid={uid} not found'
+        resp_json['error'] = 'Subscriber with uuid not found'
         return resp_json, FailureCode
 
-    return resp_json, FailureCode
+    # TODO: Populate out_json
+    out_data =  { c.key: getattr(obj, c.key)
+        for c in inspect(obj).mapper.column_attrs }
+
+    remove_keys = [
+        'id',
+        'otp_email',
+        'otp_mobile',
+        'otp_telegram',
+        'notification_hash'
+    ]
+
+    for key in remove_keys:
+        del out_data[key]
+
+    resp_json['subscription'] = out_data
+    resp_json['success'] = True
+    return resp_json, SuccessCode
 
 @app.route('/remove_subscription/<uid>', methods=['GET'])
 def remove_subscription(uid):
