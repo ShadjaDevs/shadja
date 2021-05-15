@@ -1,5 +1,6 @@
 import os
 
+from flask_cors import CORS
 from flask_pymongo import PyMongo
 from flask_sqlalchemy import SQLAlchemy
 from celery import Celery
@@ -17,6 +18,9 @@ def make_db(app):
     # Mongo
     mg = PyMongo()
     mg.init_app(app)
+
+    # CORS
+    CORS(app)
     return db, mg, app
 
 # CELERY AND RABBITMQ
