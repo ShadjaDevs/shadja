@@ -14,7 +14,20 @@ JSON output: a hash with the following keys:
 # /add_subscription
 
 Method: POST
-JSON input: None
+JSON input
+
+## required
+  - old: bool
+  - pincodes: list of integers
+
+## optional
+  - want_free: bool,
+  - flavor: str,
+  - start_date: str,
+  - end_date: str,
+  - email: str,
+  - mobile: int,
+  - telegram_id: str
 Response (on success): uuid in JSON format
 
 # /update_subscription/<uuid>
