@@ -1,5 +1,6 @@
 '''Contains commmon utility functions'''
 
+import datetime
 import hashlib
 import os
 import random
@@ -51,7 +52,7 @@ def isValidDate(date):
 def isValidDateStr(date):
     '''Check if supplied date string is valid'''
     try:
-        if date != datetime.strptime(date_text, DateFormat).strftime(DateFormat):
+        if date != datetime.datetime.strptime(date, DateFormat).strftime(DateFormat):
             raise ValueError
         return True
     except ValueError:
@@ -101,3 +102,7 @@ def isValidUUID(uid):
     # valid uuid4. This is bad for validation purposes.
 
     return str(val).lower() == str(uid).lower()
+
+def getDateFromDateStr(date):
+    '''Return date in datetime.date object'''
+    return datetime.datetime.strptime(date, DateFormat).date()

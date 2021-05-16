@@ -112,8 +112,8 @@ def add_subscription(uid=None):
 
     subscription.want_free = in_json.get('want_free')
     subscription.flavor = in_json.get('flavor')
-    subscription.start_date = in_json.get('start_date')
-    subscription.end_date = in_json.get('end_date')
+    subscription.start_date = utils.getDateFromDateStr(in_json.get('start_date'))
+    subscription.end_date = utils.getDateFromDateStr(in_json.get('end_date'))
 
     # Allow only adding new channels, cannot delete
     if (uid is None) or (not subscription.verified_email):
