@@ -67,7 +67,7 @@
             :disableUI="false"
             :zoom="12"
             mapType="roadmap"
-            :center="{ lat: 38.8977859, lng: -77.0057621 }">
+            :center="mapCenter">
           </gmap>
           <google-map :init="initializeGoogleMap" :markers="markers" />
           <ion-card v-if = "availableSlots === 0">
@@ -110,7 +110,8 @@ export default  {
       ],
       clicked: false,
       activeColor: 'blue',
-      mapMarkers: []
+      mapMarkers: [],
+      mapCenter: { lat: 38.8977859, lng: -77.0057621 }
     }
   },
   setup() {
@@ -218,10 +219,10 @@ methods: {
           tempMarker.lat = data[i].lat;
           tempMarker.long = data[i].long;
           tempMarker.content = data[i].content;
-          if (data[i].covaxin) {
-            tempMarker = data[i].free ? this.markerIcons.covaxin.free : this.markerIcons.covaxin.paid;
+          if (data[i].vaccine === 'Covaxin"') {
+            tempMarker = data[i].type === 'free' ? this.markerIcons.covaxin.free : this.markerIcons.covaxin.paid;
           } else {
-            tempMarker = data[i].free ? this.markerIcons.covishield.free : this.markerIcons.covishield.paid;
+            tempMarker = data[i].type === 'free' ? this.markerIcons.covishield.free : this.markerIcons.covishield.paid;
           }
       }
     }

@@ -38,7 +38,7 @@ class AuthService{
 
             ApiService.mount401Interceptor();
 
-            return response.data.access_token;
+            return response.data;
         } catch (error) {
             this.catchError(error);
         }

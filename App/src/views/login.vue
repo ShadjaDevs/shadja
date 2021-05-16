@@ -40,15 +40,18 @@ import { IonPage, IonCard, IonItem, IonLabel, IonButton, IonInput, alertControll
 import { logIn, personAdd } from 'ionicons/icons';
 import { mapActions, mapGetters } from "vuex"
 import { useRouter } from 'vue-router';
+import userDataService from '../services/user.service';
 export default {
   name: 'SignIn',
   components: { IonPage, IonCard, IonItem, IonLabel, IonButton, IonInput, IonIcon },
   setup() {
     const router = useRouter();
+    const { user } = userDataService();
     return {
       router,
       logIn,
-      personAdd
+      personAdd,
+      user
     };
   },
   data() {
@@ -69,10 +72,11 @@ export default {
   methods: {
     ...mapActions("auth", ["signIn"]),
     async handleLogin() {
-      this.signIn(this.form).then(() => {
-        this.form.username = ""
-        this.form.password = ""
-        this.router.push("/tabs/tab1")
+      this.signIn(this.form).then((data) => {
+        this.form.username = "";
+        this.form.password = "";
+        this.user.value = data;
+        this.router.push("/tabs/tab2");
       }).catch(async (err) => {
         const errorAlert = await alertController
             .create({
