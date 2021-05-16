@@ -30,7 +30,7 @@ JSON input
   - telegram_id: str
 Response (on success): uuid in JSON format
 
-# /update_subscription/<uuid>
+# /update_subscription/{uuid}
 
 Method: POST
 JSON input: hash with keys to be updated for the given subscription.
@@ -41,14 +41,14 @@ Note:
   - Verified email/mobile/telegram ID cannot be edited
   - New email/mobile/telegram ID can be added if not present already
 
-# /get_subscription/<uuid>
+# /get_subscription/{uuid}
 
 Method: GET
 JSON input: None
 
 Response (on success): 'subscription' key in the hash containing all attributes corresponding to the uuid.
 
-# /remove_subscription/<uuid>
+# /remove_subscription/{uuid}
 
 Method: GET
 JSON input: None
@@ -57,7 +57,7 @@ Response (on success): 'success' key set to true
 
 Note: this method is implemented as 'GET' instead of 'DELETE' so that the link can be embedded in notification emails/SMS and users have a one click unsubscribe experience.
 
-# /input_otp/<uuid>
+# /input_otp/{uuid}
 
 Method: POST
 JSON input: hash with following keys:
@@ -72,7 +72,7 @@ Response
   - on success: 'success' key set to true
   - on failure: 'success' key set to false
 
-# /nearby_pincodes/<pincode>/<radius>
+# /nearby_pincodes/{pincode}/{radius}
 
 Method: GET
 JSON input: None
