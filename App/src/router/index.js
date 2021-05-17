@@ -12,7 +12,7 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/tabs/tab1'
+        redirect: '/tabs/tab2'
       },
       {
         path: 'tab1',
@@ -38,7 +38,7 @@ const routes = [
   },
   {
     path: '/signup',
-    component: import('@/views/signup.vue'),
+    component: import('@/views/signup1.vue'),
     meta: {
       public: true,
       onlyWhenLoggedOut: true

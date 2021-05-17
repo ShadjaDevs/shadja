@@ -1,6 +1,6 @@
 import axios from "axios";
 import {store} from '@/store';
-import {TokenService} from "@/services/token.service";
+//import {TokenService} from "@/services/token.service";
 import {loadingController} from '@ionic/vue';
 
 class ApiService {
@@ -8,16 +8,16 @@ class ApiService {
         axios.defaults.baseURL = baseURL;
         this._requestInterceptor = 0;
         this._401interceptor = 0;
-        this.tokenService = new TokenService;
+        //this.tokenService = new TokenService;
     }
-    setHeader() {
-        axios.defaults.headers.common[
-            "Authorization"
-            ] = `Bearer ${this.tokenService.getToken()}`;
-    }
-    removeHeader() {
-        axios.defaults.headers.common = {};
-    }
+    // setHeader() {
+    //     axios.defaults.headers.common[
+    //         "Authorization"
+    //         ] = `Bearer ${this.tokenService.getToken()}`;
+    // }
+    // removeHeader() {
+    //     axios.defaults.headers.common = {};
+    // }
     get(resource) {
         return axios.get(resource);
     }
