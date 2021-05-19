@@ -52,10 +52,12 @@ def isValidDate(date):
 def isValidDateStr(date):
     '''Check if supplied date string is valid'''
     try:
-        if date != datetime.datetime.strptime(date, DateFormat).strftime(DateFormat):
+        if date != datetime.datetime.strptime(
+            date, DateFormat).strftime(DateFormat):
+
             raise ValueError
         return True
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
 def isValidEmail(email):
@@ -105,4 +107,6 @@ def isValidUUID(uid):
 
 def getDateFromDateStr(date):
     '''Return date in datetime.date object'''
+    if not isValidDateStr(date):
+        return None
     return datetime.datetime.strptime(date, DateFormat).date()
