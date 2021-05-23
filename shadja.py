@@ -230,9 +230,12 @@ def get_subscription(uid):
         resp_json['error'] = 'Subscriber with uuid not found'
         return resp_json, FailureCode
 
-    # TODO: Populate out_json
     out_data =  { c.key: getattr(subscription, c.key)
         for c in inspect(subscription).mapper.column_attrs }
+
+    # Convert Pincode to raw pincodes in the response
+    out_data['pincodes'] = sorted(
+        x.code for x in subscription.pincodes)
 
     remove_keys = [
         'id',
