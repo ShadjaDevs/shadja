@@ -211,13 +211,13 @@ all_tasks = (
     updateAllSubscribers.si() | updateLog.si('end')
 )
 
-@celery.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(
-        celery.conf.get('CELERY_BEAT_INTERVAL'),
-        all_tasks.si(),
-        name='All shadja background updates'
-    )
+celery.conf.beat_schedule = {
+    'All shadja background updates': {
+        'task': 'poller.all_tasks',
+        'schedule': celery.conf.get('CELERY_BEAT_INTERVAL'),
+        'args': ()
+    }
+}
 
 if __name__=='__main__':
     pass
