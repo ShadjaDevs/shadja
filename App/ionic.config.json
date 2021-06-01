@@ -1,7 +1,0 @@
-{
-  "name": "vaccine-beku",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "vue"
-}
