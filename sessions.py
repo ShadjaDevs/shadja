@@ -33,6 +33,10 @@ def hash_sessions(sessions):
 def hash_calendar(calendar):
     all_hashes = []
     calendar = deepcopy(calendar)
+
+    # If pincode is part of the dict, add that
+    all_hashes.append(hash(calendar.get('pincode',0)))
+
     for i in range(len(calendar["centers"])):
         center = calendar["centers"][i]
         sessions = center.get("sessions", None)
@@ -51,5 +55,15 @@ def hash_calendar(calendar):
         ))
     return hash(frozenset(Counter((h for h in all_hashes))))
 
+def hash_centers(code, centers):
+    '''Small adapter to reuse hash_calendar function even for subscription
+    availability dictionary'''
+    availability2cal = {
+        'pincode': code,
+        'centers': centers
+    }
+    return hash_calendar(availability2cal)
+
 def hash_calendars(calendars):
-    return hash(frozenset(Counter((hash_calendar(c) for c in calendars)).items()))
+    return hash(frozenset(Counter(hash_centers(pincode, centers)
+        for pincode, centers in calendars.items()).items()))
