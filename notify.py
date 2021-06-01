@@ -24,7 +24,8 @@ def notify_email(subscription, available_centers):
         open('templates/email_slot_template.html').read()).render(
             available_centers=available_centers,
             unsub_url=UnsubscribeURL.format(subscription.uuid))
-    to = subscription.email
+    to = app.config.get('ELASTICEMAIL_DEBUG_EMAIL') \
+        if app.config.get('ELASTICEMAIL_DEBUG') else subscription.email
 
     emailResponse = EmailClient.Email.Send(
         subject=EmailApptSubject,
