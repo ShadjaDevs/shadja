@@ -275,7 +275,7 @@ def remove_subscription(uid):
     db.session.delete(subscription)
     db.session.commit()
     resp_json['success'] = True
-    return resp_json, SuccessCode
+    return render_template('unsubscribe_template.html')
 
 @app.route('/nearby_pincodes/<pincode>/<radius>', methods=['GET'])
 def nearby_codes(pincode, radius):
