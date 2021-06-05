@@ -21,10 +21,10 @@ class Pincode(db.Model):
     # hash of all availabilities, using Session.hash_many()
     availabilities_hash = db.Column(db.String(24))
     subscriptions = db.relationship(
-        "Subscription", 
+        'Subscription', 
         secondary=subscription_pincode,
         lazy=True, 
-        backref=db.backref("pincodes", lazy=True))
+        backref=db.backref('pincodes', lazy=True))
 
     def __init__(self, code, availabilities=json.dumps({})):
         self.code = code
@@ -61,6 +61,7 @@ class Subscription(db.Model):
     uuid = db.Column(UUIDType(binary=True))
     # hash of all sessions included in notification using Session.hash_many()
     notification_hash = db.Column(db.String(24))
+    notifications = db.relationship('Notification', backref='subscription', lazy=True)
 
     def __init__(self, old, pincodes):
         self.old = old
@@ -73,6 +74,20 @@ class Subscription(db.Model):
 
     def __repr__(self):
         return f'Subscription<old:{self.old} want_free:{self.want_free} flavor:{self.flavor}>'
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    '''Class object to represent hash of every session notification sent
+    by the system to subscribers'''
+    id = db.Column(db.Integer, primary_key=True)
+    hsh = db.Column(db.String(24))
+    subscription_id = db.Column(db.Integer, db.ForeignKey('subscriptions.id'))
+
+    def __init__(self, hsh):
+        self.hsh = hsh
+
+    def __repr__(self):
+        return f'Notification<hash:{self.hsh}>'
 
 def create_pincodes(pincodes):
     '''

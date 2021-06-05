@@ -4,6 +4,7 @@ Script to be called by the cron job periodically to query CoWIN and update subsc
 
 import datetime
 from collections import defaultdict
+from copy import deepcopy
 from celery import group, subtask
 
 from sessions import *
@@ -11,7 +12,7 @@ import cowin
 import notify
 import utils
 from shadja import celery, db
-from models import Pincode, Subscription
+from models import Pincode, Subscription, Notification
 
 def processNotifications(subscription):
     '''Figure out if slots are relevant to this susbscriber and notify if yes'''
@@ -77,7 +78,11 @@ def processNotifications(subscription):
             ((subscription.start_time <= end_time) and \
              (subscription.end_time >= start_time))
         return valid
-    
+
+    def is_new_session(session, center_id):
+        return (str(hash_session(session, center_id)) not in
+            (notif.hsh for notif in subscription.notifications))
+
     if not is_valid_subscriber(subscription):
         return False
 
@@ -85,28 +90,28 @@ def processNotifications(subscription):
     available_centers = defaultdict(list)
 
     for pincode in subscription.pincodes:
-        data = pincode.availabilities
+        data = deepcopy(pincode.availabilities)
         # At this moment, assuming no guarantees
         # about this JSON data. Hence, checking
         # for the key in JSON before trying to access it.
         # Look before you leap approach
-        if data is None or 'centers' not in data:
+        if not (data and data.get('centers')):
             continue
 
         # First figure out if this customer is interested in
         # this center
-        centers = list(filter(is_valid_center, data['centers']))
+        data['centers'] = list(filter(is_valid_center, data['centers']))
 
-        for center in centers:
-            if 'sessions' not in center:
+        for center in data['centers']:
+            if not center.get('sessions'):
                 continue
 
             # Figure out if this customer is interested in
             # the dates offered
-            sessions = list(filter(is_valid_session, center['sessions']))
-
-            for session in sessions:
-                if 'slots' not in session:
+            center['sessions'] = list(
+                filter(is_valid_session, center['sessions']))
+            for session in center['sessions']:
+                if not session.get('slots'):
                     continue
 
                 # Figure out if this customer is interested in
@@ -115,20 +120,19 @@ def processNotifications(subscription):
                     is_valid_slot, session['slots']))
 
             # Filter out sessions with no valid slots
-            sessions = list(filter(
-                lambda session: len(session['slots'])>0, sessions))
+            center['sessions'] = list(filter(
+                lambda session: len(session['slots'])>0, center['sessions']))
 
-            if len(sessions) > 0:
-                center['sessions'] = sessions
+            # Filter out sessions already sent
+            center_id = center.get('center_id')
+            center['sessions'] = list(filter(
+                lambda s: is_new_session(s, center_id), center['sessions']))
+
+            if len(center['sessions'])>0:
                 available_centers[pincode.code].append(center)
 
     # If there are no available centers, don't send any notification
     if not available_centers:
-        return False
-
-    # If new notification is same as the last one sent, then don't send
-    new_notification_hash = str(hash_calendars(available_centers))
-    if new_notification_hash == subscription.notification_hash:
         return False
 
     # Send the notification
@@ -143,7 +147,12 @@ def processNotifications(subscription):
         sent_t = notify.notify_telegram(subscription, available_centers)
 
     if sent_e or sent_m or sent_t:
-        subscription.notification_hash = new_notification_hash
+        for centers in available_centers.values():
+            for center in centers:
+                center_id = center.get('center_id')
+                for session in center['sessions']:
+                    subscription.notifications.append(
+                        Notification(str(hash_session(session, center_id))))
         db.session.commit()
         return True
 
@@ -178,7 +187,6 @@ def updateSubscriber(subscription_id):
         return False
 
     result = processNotifications(subscription)
-    print(subscription.notification_hash)
     return result
 
 @celery.task
